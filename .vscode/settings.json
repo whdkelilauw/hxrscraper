@@ -1,0 +1,7 @@
+{
+    "python.analysis.extraPaths": [
+        "./helpers"
+    ],
+    "git.ignoreLimitWarning": true
+    
+}
