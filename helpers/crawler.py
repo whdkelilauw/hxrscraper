@@ -179,10 +179,10 @@ def crawl_tweets(keyword: str, since: str, until: str, lang: str, limit: int = 5
 
                     if page.locator("text=Retry").first.is_visible():
                         print(f"\n[WARNING] Scroll limit terdeteksi {retry_attempts} kali.")
-                        print("[COOLDOWN] Istirahat sejenak, cooldown 1 menit\n")
+                        print("[COOLDOWN] Istirahat sejenak, cooldown 1 menit")
                         time.sleep(55)
                     else:
-                        print("[OK] Limit hilang, continue crawling\n")
+                        print("\n[OK] Limit hilang, continue crawling\n")
                         break
 
             except PlaywrightTimeoutError:

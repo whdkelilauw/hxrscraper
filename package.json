@@ -1,11 +1,11 @@
 {
   "name": "hxrscraper",
   "description": "A Twitter/X crawling tool for academic and non-commercial purposes",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "HXRscraper License | Custom MIT Variant",
   "author": "whdkelilauw",
   "created": "2025-09-12",
-  "updated": "",
+  "updated": "2025-11-21",
   "main": "main.py",
   "scripts": {
     "start": "python main.py"
