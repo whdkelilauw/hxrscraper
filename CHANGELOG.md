@@ -29,6 +29,7 @@ Versi ini merupakan **rilis pertama HXRscraper**.
 - urllib.parse di crawler.py untuk convert keyword to url
 - Project name 
 - Project name sekarang ada pada file CSV
+- File hasil scraping sekarang terfolder project name
 - Trend tweet monthly graph
 - Convert time zone +0000 to +0700 `tweet_types.py`
 - Convert time zone +0000 to +0700 `preprocessing.ipynb`

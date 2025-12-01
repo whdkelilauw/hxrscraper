@@ -4,21 +4,22 @@ import os
 from typing import List, Dict
 from datetime import datetime, timezone
 
-def save_to_csv(tweets: List[Dict], filename: str):
+def save_to_csv(tweets: List[Dict], project_name:str, filename: str):
     """
     Menyimpan hasil scraping tweet ke file CSV di folder 'result'.
     Jika file dengan nama sama sudah ada, otomatis akan ditambahkan angka di belakangnya.
     """
 
-    # Pastikan folder 'result' sudah tersedia
-    os.makedirs("result", exist_ok=True)
-    filepath = os.path.join("result", filename)
+    base_folder = f"result/{project_name}/tweets"
+    
+    os.makedirs(base_folder, exist_ok=True)
+    filepath = os.path.join(base_folder, filename)
 
     # Cegah overwrite file lama dengan menambahkan penomoran otomatis
     base, ext = os.path.splitext(filename)
     counter = 1
     while os.path.exists(filepath):
-        filepath = os.path.join("result", f"{base}_{counter}{ext}")
+        filepath = os.path.join(base_folder, f"{base}_{counter}{ext}")
         counter += 1
 
     # Konversi kolom 'created_at' ke datetime agar bisa diurutkan dengan benar
@@ -96,21 +97,21 @@ def save_to_csv(tweets: List[Dict], filename: str):
     print(f"[OK] {rows_saved} Data tweet tersimpan di: {filepath}")
 
 
-def save_users_to_csv(users: list, filename: str):
+def save_users_to_csv(users: list, project_name: str, filename: str):
     """
     Menyimpan data pengguna (user) ke dalam file CSV.
     Digunakan untuk hasil scraping user detail atau relasi antar akun.
     """
 
-    import csv, os
-    os.makedirs("result", exist_ok=True)
-    filepath = os.path.join("result", filename)
+    base_folder = f"result/{project_name}/users"
+    os.makedirs(base_folder, exist_ok=True)
+    filepath = os.path.join(base_folder, filename)
 
     # Sama seperti save_to_csv, tambahkan angka jika nama file sudah dipakai
     base, ext = os.path.splitext(filename)
     counter = 1
     while os.path.exists(filepath):
-        filepath = os.path.join("result", f"{base}_{counter}{ext}")
+        filepath = os.path.join(base_folder, f"{base}_{counter}{ext}")
         counter += 1
 
     # Kalau data kosong, tampilkan peringatan dan batal simpan

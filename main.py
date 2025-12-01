@@ -14,6 +14,7 @@ if __name__ == "__main__":
     # Nama project **OPSIONAL**
     # Digunakan sebagai nama file hasil crawling
     project_name = 'mbg'
+    project_name = (project_name or '').strip()
 
     # Kata kunci pencarian — bisa kombinasikan dengan operator logika (AND, OR)
     keyword = '(mbg OR "makan bergizi gratis" OR "makanan bergizi gratis" OR "program makan gratis" OR "program bergizi gratis" OR "menu bergizi gratis" OR "kebijakan makan gratis" OR "pemberian makan gratis" OR "sekolah makan gratis")'
@@ -21,8 +22,8 @@ if __name__ == "__main__":
     # Rentang tanggal pencarian **OPSIONAL**
     # Format: 'since:YYYY-MM-DD' dan 'until:YYYY-MM-DD'
     # Contoh: since = 'since:2025-01-01', until = 'until:2025-01-31'
-    since = 'since:2025-10-09'
-    until = 'until:2025-10-17'
+    since = 'since:2025-11-09'
+    until = ''
 
     # Filter bahasa **OPSIONAL**
     # Isi dengan kode bahasa seperti 'lang:id' untuk Bahasa Indonesia,
@@ -32,18 +33,18 @@ if __name__ == "__main__":
 
     # Batas jumlah tweet yang akan diambil
     # Sesuaikan agar tidak membebani server, misal 5000–20000.
-    limit = 50000
+    limit = 50500
 
     # Jalankan fungsi crawling berdasarkan parameter di atas
     tweets, users = crawl_tweets(keyword, since, until, lang, limit)
 
     # Simpan hasil ke file CSV
-    if project_name != '':
-        save_to_csv(tweets, f"{project_name}-tweets.csv")
-        save_users_to_csv(users, f"{project_name}-users.csv")
+    if project_name:
+        save_to_csv(tweets, project_name, f"{project_name}-tweets.csv")
+        save_users_to_csv(users, project_name, f"{project_name}-users.csv")
     else:
-        save_to_csv(tweets, "tweets.csv")
-        save_users_to_csv(users, "users.csv")
+        save_to_csv(tweets, 'default', "tweets.csv")
+        save_users_to_csv(users, 'default', "users.csv")
 
     # ============================================================
     # MODE 2: Crawling satu postingan spesifik (single post mode)

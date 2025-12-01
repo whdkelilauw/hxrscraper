@@ -58,7 +58,7 @@ def merge_csv(input_folder, output_file, date_column):
 if __name__ == "__main__":
     # Folder tempat menyimpan semua file CSV yang mau digabung
     merge_csv(
-        input_folder="tools/users",          # Folder input
-        output_file="tools/users/merged.csv",# Nama file hasil gabungan
+        input_folder="result/mbg/users",          # Folder input
+        output_file="result/mbg/users/merged.csv",# Nama file hasil gabungan
         date_column="created_at"             # Kolom tanggal untuk sortir (saat ini 'created_at')
     )
