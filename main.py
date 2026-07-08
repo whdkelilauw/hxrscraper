@@ -5,6 +5,7 @@ from helpers.saver import save_to_csv, save_users_to_csv
 from version import banner
 banner()
 
+AUTH = 'cookies'
 if __name__ == "__main__":
     # ======================================================
     # MODE 1: Crawling berdasarkan kata kunci (search mode)
@@ -40,7 +41,7 @@ if __name__ == "__main__":
     limit = 50000
 
     # Jalankan fungsi crawling berdasarkan parameter di atas
-    tweets, users = crawl_tweets(keyword, excluded, since, until, lang, 'cookies', limit)
+    tweets, users = crawl_tweets(keyword, excluded, since, until, lang, AUTH, limit)
 
     # Simpan hasil ke file CSV
     if project_name:
@@ -60,6 +61,6 @@ if __name__ == "__main__":
 
     # Contoh post_url "https://x.com/hax0r26/status/1511812169960419328"
     # post_url = ""
-    # tweets, users = crawl_single_post(post_url)
+    # tweets, users = crawl_single_post(post_url, AUTH)
     # save_to_csv(tweets, "single-tweets.csv")
     # save_users_to_csv(users, "users-single-tweets.csv")
