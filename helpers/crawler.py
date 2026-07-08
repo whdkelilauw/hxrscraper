@@ -3,7 +3,7 @@ import json
 import time
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from typing import List, Dict
-from helpers.tweet_types import parse_tweet, parse_user
+from helpers.tweet_types import parse_tweet, parse_user, normalize_tweet_result
 import msvcrt
 import threading
 import urllib.parse
@@ -26,7 +26,7 @@ def listen_for_enter():
         time.sleep(0.2)
 
 
-def crawl_tweets(keyword: str, since: str, until: str, lang: str, limit: int = 50) -> List[Dict]:
+def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str, auth: str, limit: int = 50) -> List[Dict]:
     """
     Melakukan crawling tweet berdasarkan kata kunci, rentang tanggal, bahasa, dan batas jumlah.
     Menggunakan Playwright untuk mengakses X (Twitter) versi web, kemudian menangkap response JSON 
@@ -52,14 +52,15 @@ def crawl_tweets(keyword: str, since: str, until: str, lang: str, limit: int = 5
     threading.Thread(target=listen_for_enter, daemon=True).start()
     
     # Susun query pencarian dari parameter yang diberikan
-    parts = [keyword, lang, since, until]
+    parts = [keyword, excluded, since, until, lang]
     query = " ".join(part for part in parts if part).strip()
     encoded = urllib.parse.quote(query)
-    search_url = f"https://x.com/search?q={encoded}&src=typed_query&f=live"
+    search_url = f"https://x.com/search?q={encoded}%20include%3Anativeretweets&src=typed_query&f=live"
 
     # Inisialisasi variabel
     tweets: List[Dict] = []
     users: dict = {}
+    tweet_index = {}
     scroll_pause = 3              # jeda antar scroll (detik)
     scrolling_number = 0          # jumlah scroll berturut-turut
     timeout_limit = 10            # batas scroll tanpa hasil sebelum timeout
@@ -67,13 +68,14 @@ def crawl_tweets(keyword: str, since: str, until: str, lang: str, limit: int = 5
     max_timeout = 3               # batas maksimum timeout
     new_tweets_since_last_scroll = 0
     new_tweets_since_last_cooldown = 0
+    last_seen_created_at = None
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
         context = browser.new_context()
 
         # Muat cookies autentikasi agar bisa akses hasil pencarian penuh
-        with open("auth/cookies.json", "r", encoding="utf-8") as f:
+        with open(f"auth/{auth}.json", "r", encoding="utf-8") as f:
             cookies = json.load(f)
 
         # Pastikan properti sameSite selalu valid
@@ -89,8 +91,10 @@ def crawl_tweets(keyword: str, since: str, until: str, lang: str, limit: int = 5
             Fungsi event listener untuk menangani setiap response yang masuk dari browser.
             Jika response mengandung data "SearchTimeline", maka data tweet dan user akan di-parse.
             """
-            nonlocal tweets, users, new_tweets_since_last_scroll, new_tweets_since_last_cooldown
+            nonlocal tweets, users, new_tweets_since_last_scroll, new_tweets_since_last_cooldown, last_seen_created_at
             try:
+                if stop_crawling:
+                    return
                 if "SearchTimeline" in response.url:
                     data = response.json()
 
@@ -118,19 +122,38 @@ def crawl_tweets(keyword: str, since: str, until: str, lang: str, limit: int = 5
                                 continue
                             
                             tweet_res = content.get("tweet_results", {}).get("result", {})
-                            if tweet_res:
-                                parsed_tweet = parse_tweet(tweet_res)
-                                parsed_user = parse_user(tweet_res)
-                                user_id = parsed_user["user_id_str"]
+                            if not tweet_res:
+                                continue
 
-                                # Simpan tweet dan user unik
-                                if parsed_tweet and parsed_tweet not in tweets:
-                                    tweets.append(parsed_tweet)
-                                    new_tweets_since_last_scroll += 1
-                                    new_tweets_since_last_cooldown += 1
-                                
+                            # Normalize (handle TweetWithVisibilityResults)
+                            tweet_res = normalize_tweet_result(tweet_res)
+                            if not tweet_res:
+                                continue
+
+                            parsed_tweet = parse_tweet(tweet_res)
+                            parsed_user = parse_user(tweet_res)
+
+                            tweet_id = parsed_tweet.get("tweet_id_str")
+                            user_id = parsed_user.get("user_id_str")
+
+                            if tweet_id == "-" or tweet_id is None:
+                                continue
+
+                            created_at = parsed_tweet.get("created_at")
+                            if created_at and created_at != "-":
+                                last_seen_created_at = created_at
+
+                            # Simpan tweet baru, skip duplikat
+                            if tweet_id not in tweet_index:
+                                tweet_index[tweet_id] = len(tweets)
+                                tweets.append(parsed_tweet)
+
                                 if user_id != "-" and user_id not in users:
                                     users[user_id] = parsed_user
+
+                                new_tweets_since_last_scroll += 1
+                                new_tweets_since_last_cooldown += 1
+
             except Exception:
                 pass
 
@@ -145,80 +168,90 @@ def crawl_tweets(keyword: str, since: str, until: str, lang: str, limit: int = 5
         except Exception as e:
             print("[WARNING] ",e)
 
+        if len(tweets) > 0:
+            print(f"[OK] Initial load: {len(tweets)} tweet tertangkap")
+        else:
+            print(f"[WARNING] Initial load: 0 tweet tertangkap")
+
         # === LOOP utama scrolling ===
-        while len(tweets) < limit and timeout_count < max_timeout and not stop_crawling:
-            scrolling_number += 1
-            tweets_before = len(tweets)
-            page.mouse.wheel(0, 5000)
-            page.wait_for_timeout(scroll_pause * 1000)
-            tweets_added = len(tweets) - tweets_before
+        try:
+            while len(tweets) < limit and timeout_count < max_timeout and not stop_crawling:
+                scrolling_number += 1
+                tweets_before = len(tweets)
+                page.mouse.wheel(0, 5000)
+                page.wait_for_timeout(scroll_pause * 1000)
+                tweets_added = len(tweets) - tweets_before
 
-            # Cek apakah ada tombol "Retry" (rate-limit)
-            try:
-                retry_attempts = 0
+                # Cek apakah ada tombol "Retry" (rate-limit)
+                try:
+                    retry_attempts = 0
 
-                while True:
-                    retry_button = page.locator("text=Retry").first
+                    while True:
+                        retry_button = page.locator("text=Retry").first
 
-                    if not retry_button.is_visible() or stop_crawling:
-                        break
+                        if not retry_button.is_visible() or stop_crawling:
+                            break
 
-                    retry_attempts += 1
+                        retry_attempts += 1
 
-                    if retry_attempts > 20:
-                        print(f"[WARNING] Scroll limit terdeteksi melebihi 20 kali. Crawling dihentikan.")
-                        stop_crawling = True
-                        break
+                        if retry_attempts > 20:
+                            print(f"[WARNING] Scroll limit terdeteksi melebihi 20 kali. Crawling dihentikan.")
+                            stop_crawling = True
+                            break
 
-                    try:
-                        retry_button.click()
-                    except:
-                        pass
-                    
-                    page.wait_for_timeout(5000)
+                        try:
+                            retry_button.click()
+                        except:
+                            pass
 
-                    if page.locator("text=Retry").first.is_visible():
-                        print(f"\n[WARNING] Scroll limit terdeteksi {retry_attempts} kali.")
-                        print("[COOLDOWN] Istirahat sejenak, cooldown 1 menit")
-                        time.sleep(55)
-                    else:
-                        print("\n[OK] Limit hilang, continue crawling\n")
-                        break
+                        page.wait_for_timeout(5000)
 
-            except PlaywrightTimeoutError:
-                pass
-            except Exception:
-                pass
+                        if page.locator("text=Retry").first.is_visible():
+                            print(f"\n[WARNING] Scroll limit terdeteksi {retry_attempts} kali.")
+                            print("[COOLDOWN] Istirahat sejenak, cooldown 1 menit")
+                            time.sleep(55)
+                        else:
+                            print("\n[OK] Limit hilang, continue crawling\n")
+                            break
 
-            if stop_crawling:
-                break
+                except PlaywrightTimeoutError:
+                    pass
+                except Exception as e:
+                    print(f"[WARNING] Retry handler error: {e}")
 
-            # Jika berhasil menambah tweet baru
-            if tweets_added > 0:
-                print(f"-- Scrolling... [{scrolling_number}/{timeout_limit}] (+{tweets_added} tweet). Total parsed tweets: {len(tweets)}")
-                scrolling_number = 0
-                timeout_count = 0
-                new_tweets_since_last_scroll = 0
-            
-            # Jika tidak ada tweet baru dalam beberapa scroll
-            else:
-                print(f"-- Scrolling... [{scrolling_number}/{timeout_limit}] (0 tweet)")
-                if scrolling_number >= timeout_limit:
-                    timeout_count += 1
+                if stop_crawling and last_seen_created_at:
+                    print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at}")
+                    break
+
+                # Jika berhasil menambah tweet baru
+                if tweets_added > 0:
+                    print(f"-- Scrolling... [{scrolling_number}/{timeout_limit}] (+{tweets_added}) | Total: {len(tweets)}")
                     scrolling_number = 0
-                    print(f"[WARNING] Timeout ({timeout_count}/{max_timeout})\n")
-                    
-                    if timeout_count >= max_timeout:
-                        print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
-                        break
+                    timeout_count = 0     
+                    new_tweets_since_last_scroll = 0
 
-            # Cooldown tiap 200 tweet baru
-            if new_tweets_since_last_cooldown >= 400:
-                print("\n[COOLDOWN] Istirahat sejenak, cooldown 10 detik\n")
-                time.sleep(10)
-                new_tweets_since_last_cooldown = 0
+                # Jika tidak ada tweet baru dalam beberapa scroll
+                else:
+                    print(f"-- Scrolling... [{scrolling_number}/{timeout_limit}] (+0) | Total: {len(tweets)}")
+                    if scrolling_number >= timeout_limit:
+                        timeout_count += 1
+                        scrolling_number = 0
+                        print(f"[WARNING] Timeout ({timeout_count}/{max_timeout})\n")
 
-        browser.close()
+                        if timeout_count >= max_timeout:
+                            print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
+                            if last_seen_created_at:
+                                print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at}")
+                            break
+
+                # Cooldown tiap 200 tweet baru
+                if new_tweets_since_last_cooldown >= 400:
+                    print("\n[COOLDOWN] Istirahat sejenak, cooldown 10 detik\n")
+                    time.sleep(10)
+                    new_tweets_since_last_cooldown = 0
+
+        finally:
+            browser.close()
 
     # Batasi hasil akhir agar tidak melebihi limit
     total_parsed = len(tweets)

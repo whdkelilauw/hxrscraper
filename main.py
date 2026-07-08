@@ -13,30 +13,34 @@ if __name__ == "__main__":
     
     # Nama project **OPSIONAL**
     # Digunakan sebagai nama file hasil crawling
-    project_name = 'mbg'
+    project_name = ''
     project_name = (project_name or '').strip()
+    
+    # Tambahkan kata diawali dengan strip (-)
+    # Contoh: -prabowo atau jika frasa persis -"analisis media"
+    excluded = ''
 
     # Kata kunci pencarian — bisa kombinasikan dengan operator logika (AND, OR)
-    keyword = '(mbg OR "makan bergizi gratis" OR "makanan bergizi gratis" OR "program makan gratis" OR "program bergizi gratis" OR "menu bergizi gratis" OR "kebijakan makan gratis" OR "pemberian makan gratis" OR "sekolah makan gratis")'
-    
+    keyword = ''
+
     # Rentang tanggal pencarian **OPSIONAL**
     # Format: 'since:YYYY-MM-DD' dan 'until:YYYY-MM-DD'
-    # Contoh: since = 'since:2025-01-01', until = 'until:2025-01-31'
-    since = 'since:2025-11-09'
+    # Contoh: since = 'since:2025-01-01', until = 'until:2026-01-31'
+    since = ''
     until = ''
 
     # Filter bahasa **OPSIONAL**
     # Isi dengan kode bahasa seperti 'lang:id' untuk Bahasa Indonesia,
     # atau kosongkan ('') untuk semua bahasa.
     # Contoh: lang = 'lang:id'
-    lang = 'lang:id'
+    lang = ''
 
     # Batas jumlah tweet yang akan diambil
     # Sesuaikan agar tidak membebani server, misal 5000–20000.
-    limit = 50500
+    limit = 50000
 
     # Jalankan fungsi crawling berdasarkan parameter di atas
-    tweets, users = crawl_tweets(keyword, since, until, lang, limit)
+    tweets, users = crawl_tweets(keyword, excluded, since, until, lang, 'cookies', limit)
 
     # Simpan hasil ke file CSV
     if project_name:

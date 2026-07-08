@@ -74,7 +74,7 @@ def save_to_csv(tweets: List[Dict], project_name:str, filename: str):
                 t.get("user_id_str", "-"),
                 t.get("username", "-"),
                 t.get("name", "-"),
-                t.get("full_text", "-").replace("\r", " ").replace("\n", " "),  # hapus newline agar CSV rapi
+                t.get("full_text", "-").replace("\r", "\n"),  # pertahankan newline, csv.writer handle quoting otomatis
                 t.get("user_mentions", "-"),
                 t.get("hashtags", "-"),
                 t.get("location", "-"),

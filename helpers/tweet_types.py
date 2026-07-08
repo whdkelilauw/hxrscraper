@@ -2,6 +2,85 @@
 import pytz
 from datetime import datetime
 
+def normalize_tweet_result(result: dict) -> dict:
+    """
+    Menormalkan GraphQL tweet result:
+    - Tweet normal
+    - TweetWithVisibilityResults
+    - Selain itu → {}
+    """
+    if not isinstance(result, dict):
+        return {}
+
+    # Tweet normal
+    if "legacy" in result and "core" in result:
+        return result
+
+    # Visibility wrapper
+    if result.get("__typename") == "TweetWithVisibilityResults":
+        return result.get("tweet", {})
+
+    return {}
+
+def get_child_tweets(tweet_result: dict):
+    children = []
+
+    if not tweet_result:
+        return children
+
+    legacy = tweet_result.get("legacy", {})
+
+    # Retweet
+    rt = normalize_tweet_result(
+        legacy.get("retweeted_status_result", {}).get("result")
+    )
+    if rt:
+        children.append(("retweeted", rt))
+
+    # Quote
+    qt = normalize_tweet_result(
+        tweet_result.get("quoted_status_result", {}).get("result")
+    )
+    if qt:
+        children.append(("quoted", qt))
+
+    return children
+
+def extract_all_tweet_blocks_recursive(
+    tweet_result: dict,
+    source_id: str = None,
+    relation: str = "main",
+    blocks=None,
+    depth=0,
+    max_depth=3
+):
+    if blocks is None:
+        blocks = []
+
+    if not tweet_result or depth > max_depth:
+        return blocks
+
+    tweet_id = tweet_result.get("rest_id")
+
+    blocks.append({
+        "block": tweet_result,
+        "relation": relation,
+        "source_tweet_id": source_id
+    })
+
+    for rel, child in get_child_tweets(tweet_result):
+        extract_all_tweet_blocks_recursive(
+            child,
+            source_id=tweet_id,
+            relation=rel,
+            blocks=blocks,
+            depth=depth + 1,
+            max_depth=max_depth
+        )
+
+    return blocks
+
+
 def parse_tweet(tweet: dict) -> dict:
     """
     Mengekstrak dan merapikan data mentah tweet hasil scraping Playwright.
@@ -10,7 +89,6 @@ def parse_tweet(tweet: dict) -> dict:
     """
 
     legacy = tweet.get("legacy", {})
-    entities = legacy.get("entities", {})
 
     # Fungsi memastikan nilai tidak kosong / None
     def safe(val, default="-"):
@@ -18,30 +96,46 @@ def parse_tweet(tweet: dict) -> dict:
             return default
         return val
     
+    # Fungsi convert timezone to jakarta
+    JKT = pytz.timezone("Asia/Jakarta")
     def to_wib(created_at: str) -> str:
+        if not created_at:
+            return "-"
         utc_time = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
-        wib_time = utc_time.astimezone(pytz.timezone("Asia/Jakarta"))
-        formatted = wib_time.strftime("%a %b %d %H:%M:%S %z %Y")
-        return formatted
+        return utc_time.astimezone(JKT).strftime("%a %b %d %H:%M:%S %z %Y")
+    
+    # Extract full_text atau note_tweet (tweet dengan text panjang)
+    def extract_full_text(tweet_block: dict) -> str:
+        note = (
+            tweet_block.get("note_tweet", {})
+            .get("note_tweet_results", {})
+            .get("result", {})
+        )
+        if note:
+            text = note.get("text", "")
+        else:
+            text = tweet_block.get("legacy", {}).get("full_text", "")
+        return text.replace("\r", "\n").strip()
+    
+    # Extract entities dari legacy atau note_tweet
+    def extract_entities(tweet_block: dict):
+        note = (
+            tweet_block.get("note_tweet", {})
+            .get("note_tweet_results", {})
+            .get("result", {})
+        )
+
+        if note:
+            return note.get("entity_set", {})
+        return tweet_block.get("legacy", {}).get("entities", {})
 
 
     # Ambil ID dan waktu pembuatan tweet
     tweet_id = safe(tweet.get("rest_id"))
     created_at = safe(to_wib(legacy.get("created_at")))
 
-    # Tangani tweet dengan tipe "note_tweet" (biasanya tweet panjang)
-    note_tweet_results = (
-        tweet.get("note_tweet", {})
-        .get("note_tweet_results", {})
-        .get("result", {})
-    )
-    if not note_tweet_results:
-        text = legacy.get("full_text", "")
-    else:
-        text = note_tweet_results.get("text", "")
-
-    # Rapikan teks agar tidak ada karakter newline
-    full_text = safe(text.replace("\r", " ").replace("\n", " ").strip())
+    # Ambil full_text
+    full_text = safe(extract_full_text(tweet))
     
     # Ambil info dasar pengguna dari blok 'core'
     core_user = (
@@ -68,28 +162,15 @@ def parse_tweet(tweet: dict) -> dict:
     user_language = safe(legacy.get("lang", ""))
     
     # Kumpulan mention dalam tweet
-    if not note_tweet_results:
-        user_mentions = entities.get("user_mentions", [])
-    else:
-        user_mentions = (
-            note_tweet_results.get("entity_set", {})
-            .get("user_mentions", [])
-        )
     mentions = []
-    for m in user_mentions:
-        mentions.append(safe(f"@{m.get('screen_name', '')}"))
+    entities_used = extract_entities(tweet)
+    user_mentions = entities_used.get("user_mentions", [])
+    mentions = [safe(f"@{m.get('screen_name', '')}") for m in user_mentions]
 
     # Kumpulan hashtag dalam tweet
-    if not note_tweet_results:
-        hashtags = entities.get("hashtags", [])
-    else:
-        hashtags = (
-            note_tweet_results.get("entity_set", {})
-            .get("hashtags", [])
-        )
     tags = []
-    for m in hashtags:
-        tags.append(safe(f"#{m.get('text', '')}"))
+    hashtags = entities_used.get("hashtags", [])
+    tags = [safe(f"#{m.get('text', '')}") for m in hashtags]
 
     # Statistik interaksi tweet
     quote_count = safe(legacy.get("quote_count", 0), "0")
@@ -103,7 +184,8 @@ def parse_tweet(tweet: dict) -> dict:
     views_count = safe(views.get("count", 0), "0")
 
     # Ambil media (gambar/video) kalau ada
-    media = entities.get("media", [])
+    media_entities  = legacy.get("entities", {})
+    media = media_entities.get("media", [])
     media_url = "-"
     if media:
         media_url = safe(media[0].get("media_url_https"))
@@ -127,28 +209,29 @@ def parse_tweet(tweet: dict) -> dict:
 
     # Deteksi jenis relasi antar tweet (reply, quote, retweet)
     replied = legacy.get("in_reply_to_status_id_str", "")
-    quoted = legacy.get("quoted_status_id_str", "")
+    quoted = normalize_tweet_result(tweet.get("quoted_status_result", {}).get("result", {}))
     retweeted = legacy.get("retweeted_status_result", {}).get("result", {})
 
     relation_type = "-"
     target_tweet_id_str = "-"
     target_username = "-"
-    if replied:
+    if retweeted:
+        relation_type = "retweeted"
+        target_tweet_id_str = retweeted.get("rest_id", "")
+        target_username = extract_target_screen_name(retweeted)
+
+        rt_text = extract_full_text(retweeted)
+        full_text = safe(f"RT @{target_username}: {rt_text}")
+        
+    elif replied:
         relation_type = "replied"
         target_tweet_id_str = replied
         target_username = legacy.get("in_reply_to_screen_name", "")
 
     elif quoted:
         relation_type = "quoted"
-        target_tweet_id_str = quoted
-        target_username = extract_target_screen_name(
-            tweet.get("quoted_status_result", {}).get("result", {})
-        )
-
-    elif retweeted:
-        relation_type = "retweeted"
-        target_tweet_id_str = retweeted.get("rest_id", "")
-        target_username = extract_target_screen_name(retweeted)
+        target_tweet_id_str = quoted.get("rest_id", "")
+        target_username = extract_target_screen_name(quoted)
 
     # Kembalikan data tweet dalam format dictionary yang rapi
     return {
