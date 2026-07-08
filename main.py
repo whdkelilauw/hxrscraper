@@ -6,17 +6,16 @@ from version import banner
 banner()
 
 AUTH = 'cookies'
+PROJECT_NAME = ''
+
 if __name__ == "__main__":
+    project = (PROJECT_NAME or 'default').strip()
+
     # ======================================================
     # MODE 1: Crawling berdasarkan kata kunci (search mode)
     # ======================================================
     # Di bawah ini adalah parameter yang bisa kamu ubah sesuai kebutuhan.
-    
-    # Nama project **OPSIONAL**
-    # Digunakan sebagai nama file hasil crawling
-    project_name = ''
-    project_name = (project_name or '').strip()
-    
+
     # Tambahkan kata diawali dengan strip (-)
     # Contoh: -prabowo atau jika frasa persis -"analisis media"
     excluded = ''
@@ -44,12 +43,8 @@ if __name__ == "__main__":
     tweets, users = crawl_tweets(keyword, excluded, since, until, lang, AUTH, limit)
 
     # Simpan hasil ke file CSV
-    if project_name:
-        save_to_csv(tweets, project_name, f"{project_name}-tweets.csv")
-        save_users_to_csv(users, project_name, f"{project_name}-users.csv")
-    else:
-        save_to_csv(tweets, 'default', "tweets.csv")
-        save_users_to_csv(users, 'default', "users.csv")
+    save_to_csv(tweets, project, f"{project}-tweets.csv")
+    save_users_to_csv(users, project, f"{project}-users.csv")
 
     # ============================================================
     # MODE 2: Crawling satu postingan spesifik (single post mode)
@@ -57,10 +52,10 @@ if __name__ == "__main__":
     # Gunakan mode ini untuk mengambil seluruh thread dari satu URL tweet/post.
     # Cocok jika kamu ingin menganalisis percakapan dari satu topik atau akun tertentu.
     # Sebelum menggunakan mode ini, pastikan kamu sudah menonaktifkan MODE 1 dengan cara comment (CTRL + /)
-    # Setelah itu kamu bisa uncomment (CTRL + /) baris kode di bawah
+    # Setelah itu kamu bisa uncomment (CTRL + /) baris kode di bawah setelah contoh
 
     # Contoh post_url "https://x.com/hax0r26/status/1511812169960419328"
     # post_url = ""
     # tweets, users = crawl_single_post(post_url, AUTH)
-    # save_to_csv(tweets, "single-tweets.csv")
-    # save_users_to_csv(users, "users-single-tweets.csv")
+    # save_to_csv(tweets, project, f"{project}-single-tweets.csv")
+    # save_users_to_csv(users, project, f"{project}-single-users.csv")
