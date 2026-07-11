@@ -71,7 +71,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
     last_seen_created_at = None
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context()
 
         # Muat cookies autentikasi agar bisa akses hasil pencarian penuh
