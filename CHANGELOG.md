@@ -42,3 +42,23 @@ Versi ini merupakan **rilis pertama HXRscraper**.
 - Trend tweet daily graph
 
 ---
+
+## [0.2.0] - 2026-08-11
+### Added
+- Dukungan platform **Threads** (crawling posts dan users)
+- `crawler_threads.py` — crawler Threads dengan GraphQL intercept dan async user enrichment
+- `thread_types.py` — parser post dan user Threads, termasuk SSR profile parsing
+- `save_threads_to_csv()` dan `save_threads_users_to_csv()` di `saver.py`
+- Konfigurasi multi-platform di `main.py` (`PLATFORM = 'x' | 'threads' | 'both'`)
+- Block media (gambar/video) pada Threads crawler untuk hemat bandwidth
+- Cooldown otomatis setiap 20 user pada enrichment
+
+### Changed
+- Rename `crawler.py` -> `crawler_x.py`
+- Rename `crawler_single_post.py` -> `crawler_x_single_post.py`
+- Rename `tweet_types.py` -> `x_types.py`
+- Deskripsi project diperbarui: multi-platform social media crawling tool
+- Enrichment Threads menggunakan SSR-only (tanpa modal interaction) untuk keamanan akun
+- Enrichment Threads menggunakan 2 tab parallel
+
+---

@@ -1,4 +1,5 @@
 # helpers/tweet_types.py
+import re
 import pytz
 from datetime import datetime
 
@@ -162,10 +163,24 @@ def parse_tweet(tweet: dict) -> dict:
     user_language = safe(legacy.get("lang", ""))
     
     # Kumpulan mention dalam tweet
-    mentions = []
+    # 1. Dari Twitter API entities (bisa terpotong di titik, e.g. @a.amran.sulaiman → @a)
     entities_used = extract_entities(tweet)
-    user_mentions = entities_used.get("user_mentions", [])
-    mentions = [safe(f"@{m.get('screen_name', '')}") for m in user_mentions]
+    entity_mentions = [safe(m.get('screen_name', '')) for m in entities_used.get("user_mentions", [])]
+
+    # 2. Regex fallback dari full_text (tangkap username dengan titik)
+    regex_mentions = [m.rstrip('.') for m in re.findall(r'@([\w.]+)', full_text)] if full_text else []
+
+    # Merge: prefer regex (lebih panjang) jika entity terpotong
+    has_short = any(len(em) <= 2 for em in entity_mentions if em)
+    if has_short and regex_mentions:
+        final = set(regex_mentions)
+        for em in entity_mentions:
+            if em and not any(rm.startswith(em + '.') for rm in regex_mentions):
+                final.add(em)
+    else:
+        final = set(em for em in entity_mentions if em)
+
+    mentions = [safe(f"@{m}") for m in final if m]
 
     # Kumpulan hashtag dalam tweet
     tags = []
@@ -269,61 +284,47 @@ def parse_user(tweet: dict) -> dict:
         if val is None or val == "" or val == []:
             return default
         return val
-    
+
     legacy = tweet.get("legacy", {})
-    
-    # Ambil data inti pengguna (ID, nama, username)
-    core_user = (
+
+    # Ambil root user object
+    user_result = (
         tweet.get("core", {})
         .get("user_results", {})
         .get("result", {})
-        .get("core", {})
     )
 
-    # Ambil avatar / foto profil
-    avatar_user = (
-        tweet.get("core", {})
-        .get("user_results", {})
-        .get("result", {})
-        .get("avatar", {})
-    )
+    # Data inti pengguna (ID, nama, username, created_at)
+    core_user = user_result.get("core", {})
 
-    # Ambil statistik dan data umum pengguna
-    legacy_user = (
-        tweet.get("core", {})
-        .get("user_results", {})
-        .get("result", {})
-        .get("legacy", {})
-    )
-    
-    # Lokasi pengguna (jika tersedia)
-    location_user = (
-        tweet.get("core", {})
-        .get("user_results", {})
-        .get("result", {})
-        .get("location", {})
-    )
+    # Avatar / foto profil
+    avatar_user = user_result.get("avatar", {})
 
-    # Bangun URL akun pengguna (link ke profil X/Twitter)
+    # Lokasi pengguna
+    location_user = user_result.get("location", {})
+
+    # Statistik (path baru API X)
+    action_counts = user_result.get("action_counts", {})
+    relationship_counts = user_result.get("relationship_counts", {})
+    tweet_counts = user_result.get("tweet_counts", {})
+    website = user_result.get("website", {})
+
+    # Bangun URL akun pengguna
     account_url = (
         f"https://x.com/{safe(core_user.get('screen_name'))}"
     )
-    
-    # Kembalikan data user dalam bentuk dictionary
+
     return {
         "created_at": safe(core_user.get("created_at")),
         "user_id_str": safe(legacy.get("user_id_str")),
         "username": safe(core_user.get("screen_name")),
         "name": safe(core_user.get("name")),
-        "fast_followers_count": safe(legacy_user.get("fast_followers_count", 0), "0"),
-        "favourites_count": safe(legacy_user.get("favourites_count", 0), "0"),
-        "followers_count": safe(legacy_user.get("followers_count", 0), "0"),
-        "following_count": safe(legacy_user.get("friends_count", 0), "0"),
-        "listed_count": safe(legacy_user.get("listed_count", 0), "0"),
-        "media_count": safe(legacy_user.get("media_count", 0), "0"),
-        "normal_followers_count": safe(legacy_user.get("normal_followers_count", 0), "0"),
-        "statuses_count": safe(legacy_user.get("statuses_count", 0), "0"),
-        "url": safe(legacy_user.get("url")),
+        "favourites_count": safe(action_counts.get("favorites_count", 0), "0"),
+        "followers_count": safe(relationship_counts.get("followers", 0), "0"),
+        "following_count": safe(relationship_counts.get("following", 0), "0"),
+        "media_count": safe(tweet_counts.get("media_tweets", 0), "0"),
+        "statuses_count": safe(tweet_counts.get("tweets", 0), "0"),
+        "url": safe(website.get("url")),
         "location": safe(location_user.get("location")),
         "image_url": safe(avatar_user.get("image_url")),
         "account_url": account_url

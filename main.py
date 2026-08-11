@@ -1,61 +1,73 @@
 # main.py
-from helpers.crawler import crawl_tweets
-from helpers.crawler_single_post import crawl_single_post
-from helpers.saver import save_to_csv, save_users_to_csv
+from helpers.crawler_x import crawl_tweets
+from helpers.crawler_x_single_post import crawl_single_post
+from helpers.crawler_threads import crawl_threads
+from helpers.saver import save_to_csv, save_users_to_csv, save_threads_to_csv, save_threads_users_to_csv
 from version import banner
 banner()
 
-AUTH = 'cookies'
+# ======================================================
+# KONFIGURASI GLOBAL
+# ======================================================
+AUTH = ''
 PROJECT_NAME = ''
+
+# 'x', 'threads', 'both'
+PLATFORM = 'threads'
+
+# Rentang tanggal — OPSIONAL, digunakan oleh semua platform
+# Format: 'YYYY-MM-DD' atau kosongkan '' jika tidak ingin filter tanggal
+# X juga mendukung format waktu persis: 'YYYY-MM-DD_HH:MM:SS_WIB'
+SINCE = ''
+UNTIL = ''
+
+LIMIT = 10
+HEADLESS = False
 
 if __name__ == "__main__":
     project = (PROJECT_NAME or 'default').strip()
 
     # ======================================================
-    # MODE 1: Crawling berdasarkan kata kunci (search mode)
+    # CONFIG X / Twitter
     # ======================================================
-    # Di bawah ini adalah parameter yang bisa kamu ubah sesuai kebutuhan.
+    # Kata kunci — bisa kombinasikan dengan operator logika (AND, OR, exact phrase)
+    x_keyword = '(((surpres OR "surat presiden") (kapolri OR "Kepala Kepolisian Negara Republik Indonesia")) OR ("pergantian kapolri" OR "penggantian kapolri" OR "pencopotan kapolri" OR "pemberhentian kapolri" OR "kapolri diganti" OR "kapolri di ganti" OR "kapolri dicopot" OR "kapolri diberhentikan" OR "kapolri di berhentikan"))'
 
-    # Tambahkan kata diawali dengan strip (-)
-    # Contoh: -prabowo atau jika frasa persis -"analisis media"
-    excluded = ''
+    # Kata yang dikecualikan, diawali strip (-)
+    x_excluded = '-tabrak -curanmor -pencurian -kecelakaan'
 
-    # Kata kunci pencarian — bisa kombinasikan dengan operator logika (AND, OR)
-    keyword = ''
+    # Filter bahasa — OPSIONAL ('lang:id', 'lang:en', atau '' untuk semua)
+    x_lang = ''
 
-    # Rentang tanggal pencarian **OPSIONAL**
-    # Format: 'since:YYYY-MM-DD' dan 'until:YYYY-MM-DD'
-    # Contoh: since = 'since:2025-01-01', until = 'until:2026-01-31'
-    since = ''
-    until = ''
+    # ======================================================
+    # CONFIG Threads
+    # ======================================================
+    # Kata kunci — hanya keyword sederhana belum support operator
+    threads_keyword = 'kapolri'
 
-    # Filter bahasa **OPSIONAL**
-    # Isi dengan kode bahasa seperti 'lang:id' untuk Bahasa Indonesia,
-    # atau kosongkan ('') untuk semua bahasa.
-    # Contoh: lang = 'lang:id'
-    lang = ''
+    # ======================================================
+    # EKSEKUSI
+    # ======================================================
 
-    # Batas jumlah tweet yang akan diambil
-    # Sesuaikan agar tidak membebani server, misal 5000–20000.
-    limit = 50000
+    if PLATFORM in ('x', 'both'):
+        x_since = f'since:{SINCE}' if SINCE else ''
+        x_until = f'until:{UNTIL}' if UNTIL else ''
+        tweets, users = crawl_tweets(x_keyword, x_excluded, x_since, x_until, x_lang, AUTH, LIMIT, HEADLESS)
+        save_to_csv(tweets, project, f"{project}-tweets.csv")
+        save_users_to_csv(users, project, f"{project}-users.csv")
 
-    # Jalankan fungsi crawling berdasarkan parameter di atas
-    tweets, users = crawl_tweets(keyword, excluded, since, until, lang, AUTH, limit)
-
-    # Simpan hasil ke file CSV
-    save_to_csv(tweets, project, f"{project}-tweets.csv")
-    save_users_to_csv(users, project, f"{project}-users.csv")
+    if PLATFORM in ('threads', 'both'):
+        posts, thread_users = crawl_threads(threads_keyword, AUTH, SINCE, UNTIL, LIMIT, HEADLESS)
+        save_threads_to_csv(posts, project, f"{project}-threads-posts.csv")
+        save_threads_users_to_csv(thread_users, project, f"{project}-threads-users.csv")
 
     # ============================================================
-    # MODE 2: Crawling satu postingan spesifik (single post mode)
+    # MODE KHUSUS: Crawling satu postingan spesifik (single post)
     # ============================================================
-    # Gunakan mode ini untuk mengambil seluruh thread dari satu URL tweet/post.
-    # Cocok jika kamu ingin menganalisis percakapan dari satu topik atau akun tertentu.
-    # Sebelum menggunakan mode ini, pastikan kamu sudah menonaktifkan MODE 1 dengan cara comment (CTRL + /)
-    # Setelah itu kamu bisa uncomment (CTRL + /) baris kode di bawah setelah contoh
+    # Untuk mengambil seluruh thread dari satu URL tweet/post.
+    # Comment semua MODE di atas, lalu uncomment di bawah.
 
-    # Contoh post_url "https://x.com/hax0r26/status/1511812169960419328"
-    # post_url = ""
-    # tweets, users = crawl_single_post(post_url, AUTH)
+    # post_url = "https://x.com/hax0r26/status/1511812169960419328"
+    # tweets, users = crawl_single_post(post_url, AUTH, HEADLESS)
     # save_to_csv(tweets, project, f"{project}-single-tweets.csv")
     # save_users_to_csv(users, project, f"{project}-single-users.csv")

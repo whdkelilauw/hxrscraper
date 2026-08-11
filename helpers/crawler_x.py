@@ -1,9 +1,9 @@
-# helpers/crawler.py
+# helpers/crawler_x.py
 import json
 import time
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from typing import List, Dict
-from helpers.tweet_types import parse_tweet, parse_user, normalize_tweet_result
+from helpers.x_types import parse_tweet, parse_user, normalize_tweet_result
 import msvcrt
 import threading
 import urllib.parse
@@ -26,7 +26,7 @@ def listen_for_enter():
         time.sleep(0.2)
 
 
-def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str, auth: str, limit: int = 50) -> List[Dict]:
+def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str, auth: str, limit: int = 50, headless: bool = True) -> List[Dict]:
     """
     Melakukan crawling tweet berdasarkan kata kunci, rentang tanggal, bahasa, dan batas jumlah.
     Menggunakan Playwright untuk mengakses X (Twitter) versi web, kemudian menangkap response JSON 
@@ -71,7 +71,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
     last_seen_created_at = None
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=headless)
         context = browser.new_context()
 
         # Muat cookies autentikasi agar bisa akses hasil pencarian penuh
@@ -85,6 +85,11 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
                 
         context.add_cookies(cookies)
         page = context.new_page()
+
+        # Block media requests agar browser lebih ringan (pengganti Data Saver)
+        page.route("**/*.{png,jpg,jpeg,gif,webp,svg,mp4,webm,m3u8,ts}", lambda route: route.abort())
+        page.route("**/pbs.twimg.com/**", lambda route: route.abort())
+        page.route("**/video.twimg.com/**", lambda route: route.abort())
 
         def handle_response(response):
             """

@@ -1,11 +1,11 @@
 __title__ = "hxrscraper"
-__description__ = "A Twitter/X crawling tool for academic and non-commercial purposes"
-__version__ = "0.1.1"
+__description__ = "A multi-platform social media crawling tool for academic and non-commercial purposes"
+__version__ = "0.2.0"
 __license__ = "HXRscraper License | Custom MIT Variant"
 __author__ = "whdkelilauw"
 __main_file__ = "main.py"
 __created__ = "2025-09-12"
-__updated__ = ""
+__updated__ = "2026-08-11"
 
 def get_version_info() -> str:
     return f"{__title__} v{__version__} — {__description__}"

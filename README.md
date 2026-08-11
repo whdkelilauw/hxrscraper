@@ -64,14 +64,22 @@ Masih di terminal (setelah venv aktif), jalankan:
 
 ---
 
-### 9. Export Cookies Akun X
+### 9. Export Cookies Akun
+- Export cookies dari akun **X (Twitter)** dan/atau **Threads** menggunakan Cookie Editor.
+- Simpan file `.json` ke folder `auth/` dengan nama yang mudah dikenali (contoh: `akun1.json`).
+
 - **Tutorial:**  
   [Tonton di YouTube (mulai 1:01)](https://youtu.be/xTOK_40bXsk?t=61)
 
 ---
 
-### 10. Sesuaikan Keyword
-Buka file main.py dan ubah bagian keyword sesuai topik atau kata kunci yang ingin di-crawl.
+### 10. Konfigurasi di main.py
+Buka file `main.py` dan sesuaikan:
+- `AUTH` — nama file cookies di folder `auth/` (tanpa `.json`)
+- `PROJECT_NAME` — nama project untuk folder hasil
+- `PLATFORM` — pilih `'x'`, `'threads'`, atau `'both'`
+- `LIMIT` — batas jumlah post yang diambil
+- Keyword untuk masing-masing platform
 
 ---
 
@@ -86,26 +94,41 @@ Setelah semuanya siap, jalankan perintah berikut di terminal:
 Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 
 
+# PLATFORM YANG DIDUKUNG
+
+| Platform | Crawl Posts | Crawl Users | Single Post |
+|----------|-----------|-------------|-------------|
+| X (Twitter) | Ya | Ya | Ya |
+| Threads | Ya | Ya | Belum |
+
+
 # STRUKTUR PROJECT:
     1. analyze/     Berisi program untuk analisis sentimen dan Social Network Analysis (SNA).
 
-    2. auth/        Menyimpan file cookies.json untuk autentikasi akun X. Jangan dibagikan ke siapa pun!
+    2. auth/        Menyimpan file cookies.json untuk autentikasi akun. Jangan dibagikan ke siapa pun!
 
-    3. helpers/     Berisi file inti untuk crawling data. Tidak perlu diubah kecuali terjadi error fatal.
+    3. helpers/     Berisi file inti untuk crawling data:
+                    - crawler_x.py              Crawler utama X (Twitter)
+                    - crawler_x_single_post.py  Crawler single post X
+                    - crawler_threads.py        Crawler utama Threads
+                    - x_types.py                Parser data X
+                    - thread_types.py           Parser data Threads
+                    - saver.py                  Simpan hasil ke CSV
 
-    4. result/      Tempat penyimpanan hasil crawling (tweets dan users). Aman dari ketimpa data karena
+    4. result/      Tempat penyimpanan hasil crawling. Aman dari ketimpa data karena
                     penamaan file otomatis (tweets_1.csv, tweets_2.csv, dst).
+                    Struktur folder: result/{project}/{platform}/{tipe}/
 
-    5. tools/       Berisi alat bantu untuk menggabungkan hasil crawling dari beberapa file. *Jika punya banyak file hasil crawling*
+    5. tools/       Berisi alat bantu untuk menggabungkan hasil crawling dari beberapa file.
 
 ## Cara gabung file:
     1) Pindahkan file hasil crawling dari folder result/ ke:
-            tools/tweets/   → untuk file tweets.csv, tweets_1.csv, dst
-            tools/users/    → untuk file users.csv, users_1.csv, dst
+            tools/tweets/   -> untuk file tweets.csv, tweets_1.csv, dst
+            tools/users/    -> untuk file users.csv, users_1.csv, dst
   
     2) Jalankan perintah berikut di terminal:
-            py tools/merge_tweets_csv.py      → Untuk menggabungkan file tweets:
-            py tools/merge_users_csv.py       → Untuk menggabungkan file users:
+            py tools/merge_tweets_csv.py      -> Untuk menggabungkan file tweets:
+            py tools/merge_users_csv.py       -> Untuk menggabungkan file users:
   
     3) Hasil gabungan akan muncul di masing-masing folder dengan nama: merged.csv
 
@@ -114,6 +137,8 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 1. Pastikan venv aktif setiap kali kamu menjalankan perintah berbasis Python.
 2. Jika npm run start tidak jalan, pastikan Node.js sudah terinstal dan package.json berada di direktori utama project.
 3. File cookies.json bisa menyebabkan akun kamu logout jika salah digunakan — simpan dengan aman.
+4. Untuk Threads, gunakan cookies dari akun Instagram/Threads yang sudah login.
+5. Hindari penggunaan terlalu agresif (limit tinggi, tanpa jeda) untuk menghindari action-block dari platform.
 
 # AUTHOR & CREDITS
 HXRscraper is a tool developed by whdkelilauw

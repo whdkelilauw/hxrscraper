@@ -66,7 +66,7 @@ def merge_csv(input_folder, output_file, date_column):
 if __name__ == "__main__":
     # Folder tempat menyimpan semua file CSV yang mau digabung
     merge_csv(
-        input_folder="result/pasal_33_uud/tweets",            # Folder input
-        output_file="result/pasal_33_uud/tweets/merged.csv",  # Nama file hasil gabungan
+        input_folder="result/27_kapolri/tweets",            # Folder input
+        output_file="result/27_kapolri/tweets/merged.csv",  # Nama file hasil gabungan
         date_column="created_at"                     # Kolom tanggal untuk sortir (saat ini 'created_at')
     )

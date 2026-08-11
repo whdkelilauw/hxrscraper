@@ -1,9 +1,9 @@
-# helpers/crawler_single_post.py
+# helpers/crawler_x_single_post.py
 import json
 import time
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from typing import List, Dict
-from helpers.tweet_types import parse_tweet, parse_user, normalize_tweet_result
+from helpers.x_types import parse_tweet, parse_user, normalize_tweet_result
 import msvcrt
 import threading
 
@@ -24,7 +24,7 @@ def listen_for_enter():
                 break
         time.sleep(0.2)
 
-def crawl_single_post(url: str, auth: str) -> List[Dict]:
+def crawl_single_post(url: str, auth: str, headless: bool = True) -> List[Dict]:
     """
     Melakukan crawling terhadap satu postingan (tweet utama) dan seluruh reply-nya.
     Mengambil data tweet dan user secara real-time melalui intercept response Playwright.
@@ -58,7 +58,7 @@ def crawl_single_post(url: str, auth: str) -> List[Dict]:
     last_seen_created_at = None
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=headless)
         context = browser.new_context()
 
         # Muat cookies autentikasi agar bisa akses tweet login-only
