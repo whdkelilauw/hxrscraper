@@ -57,6 +57,9 @@ Versi ini merupakan **rilis pertama HXRscraper**.
 - Proteksi false positive pada deteksi tombol reply menggunakan exact text matching
 - Cooldown per 100 komentar (10 detik) pada IG single post crawler
 - Support **Giphy comments** — komentar GIF disimpan sebagai `[GIF] url`
+- `merge_data_csv.py` — tool merge universal dengan menu interaktif (menggantikan `merge_tweets_csv.py` + `merge_users_csv.py`)
+- `data_cutter.py` — rewrite dengan menu interaktif (pilih project, folder, file, tanggal)
+- Shortcut `npm run merge` dan `npm run cut` di `package.json`
 
 ### Changed
 - Kolom `text` → `full_text` pada data komentar IG (konsisten dengan posts)
@@ -65,6 +68,8 @@ Versi ini merupakan **rilis pertama HXRscraper**.
 - Cooldown threshold X: 400 → 200
 - Platform konfigurasi mendukung kombinasi bebas (`'ig'`, `'x, threads'`, `'all'`)
 - IG tidak menggunakan filter date (SINCE/UNTIL) karena platform tidak mendukung
+- Folder output IG comments dipisah: `ig/comments/comments/` dan `ig/comments/users/`
+- Tools merge dan cutter sekarang auto-detect kolom ID dan skip sort jika `created_at` tidak ada
 
 ---
 

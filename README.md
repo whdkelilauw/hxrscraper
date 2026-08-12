@@ -125,18 +125,25 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
                     penamaan file otomatis (tweets_1.csv, tweets_2.csv, dst).
                     Struktur folder: result/{project}/{platform}/{tipe}/
 
-    5. tools/       Berisi alat bantu untuk menggabungkan hasil crawling dari beberapa file.
+    5. tools/       Berisi alat bantu untuk mengelola hasil crawling:
+                    - merge_data_csv.py   Gabung beberapa file CSV jadi satu (semua platform & tipe data)
+                    - data_cutter.py      Potong data berdasarkan rentang tanggal
 
-## Cara gabung file:
-    1) Pindahkan file hasil crawling dari folder result/ ke:
-            tools/tweets/   -> untuk file tweets.csv, tweets_1.csv, dst
-            tools/users/    -> untuk file users.csv, users_1.csv, dst
-  
-    2) Jalankan perintah berikut di terminal:
-            py tools/merge_tweets_csv.py      -> Untuk menggabungkan file tweets:
-            py tools/merge_users_csv.py       -> Untuk menggabungkan file users:
-  
-    3) Hasil gabungan akan muncul di masing-masing folder dengan nama: merged.csv
+## Cara pakai tools:
+
+### Merge data (gabung file CSV):
+    npm run merge
+
+    Ikuti menu interaktif: pilih project → pilih folder data → otomatis merge.
+    Mendukung semua tipe: tweets, posts, comments, users (semua platform).
+    Duplikat otomatis dihapus berdasarkan kolom ID masing-masing tipe data.
+    Hasil: merged.csv di folder yang dipilih.
+
+### Data cutter (potong by tanggal):
+    npm run cut
+
+    Ikuti menu interaktif: pilih project → pilih folder → pilih file → masukkan rentang tanggal.
+    Hasil: cut_{nama_file}.csv di folder yang sama.
 
 
 # CATATAN TAMBAHAN
@@ -149,5 +156,6 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 # AUTHOR & CREDITS
 HXRscraper is a tool developed by whdkelilauw
 
-> HXRscraper dibagikan bukan untuk dijual, tapi untuk dipelajari.
-> Non-commercial, open for knowledge—silakan pakai, ubah, sebarkan. Thanks for keeping the license included.
+> Project ini dibagikan bukan untuk dijual, tapi untuk dipelajari.  
+> Non-commercial, open for knowledge, silakan pakai, ubah, sebarkan.  
+> Thanks for keeping the license included.

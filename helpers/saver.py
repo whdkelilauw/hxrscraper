@@ -404,7 +404,7 @@ def save_ig_users_to_csv(users: list, project_name: str, filename: str, enrichme
 
 
 def save_ig_comments_to_csv(comments: List[Dict], project_name: str, filename: str):
-    base_folder = f"result/{project_name}/ig/comments"
+    base_folder = f"result/{project_name}/ig/comments/comments"
     os.makedirs(base_folder, exist_ok=True)
     filepath = os.path.join(base_folder, filename)
 
@@ -461,7 +461,7 @@ def save_ig_comments_to_csv(comments: List[Dict], project_name: str, filename: s
 
 
 def save_ig_comment_users_to_csv(users: list, project_name: str, filename: str, enrichment: bool = True):
-    base_folder = f"result/{project_name}/ig/comments"
+    base_folder = f"result/{project_name}/ig/comments/users"
     os.makedirs(base_folder, exist_ok=True)
     filepath = os.path.join(base_folder, filename)
 

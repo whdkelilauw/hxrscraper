@@ -8,7 +8,9 @@
   "updated": "2026-08-12",
   "main": "main.py",
   "scripts": {
-    "start": "python main.py"
+    "start": "python main.py",
+    "merge": "python tools/merge_data_csv.py",
+    "cut": "python tools/data_cutter.py"
   },
   "dependencies": {}
 }
