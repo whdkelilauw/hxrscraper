@@ -1,17 +1,20 @@
-# helpers/crawler_threads.py
+# helpers/crawler_ig.py
 import json
 import time
 import asyncio
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright as async_pw
 from typing import List, Dict
-from helpers.thread_types import parse_thread_post, parse_thread_user, parse_thread_user_profile
+from helpers.ig_types import parse_ig_post, parse_ig_user, parse_ig_user_profile
 
 import msvcrt
 import threading
 import urllib.parse
 
 stop_crawling = False
+
+IG_PROFILE_DOC_ID = "38611279431804694"
+
 
 def listen_for_enter():
     global stop_crawling
@@ -25,17 +28,16 @@ def listen_for_enter():
         time.sleep(0.2)
 
 
-def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: str = '', limit: int = 50, headless: bool = True, enrichment: bool = True) -> tuple:
+def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, enrichment: bool = True) -> tuple:
     """
-    Crawling Threads posts berdasarkan keyword.
+    Crawling Instagram posts berdasarkan keyword.
     Menggunakan Playwright untuk intercept GraphQL search response.
 
     Parameter:
         keyword (str): Kata kunci pencarian.
         auth (str): Nama file cookies di folder auth/ (tanpa .json).
-        after_date (str): Tanggal mulai format YYYY-MM-DD (opsional).
-        before_date (str): Tanggal akhir format YYYY-MM-DD (opsional).
         limit (int): Batas jumlah post.
+        headless (bool): Jalankan browser tanpa tampilan.
 
     Return: (posts, users)
     """
@@ -45,12 +47,8 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
 
     threading.Thread(target=listen_for_enter, daemon=True).start()
 
-    params = {'q': keyword, 'serp_type': 'default', 'filter': 'recent'}
-    if after_date:
-        params['after_date'] = after_date
-    if before_date:
-        params['before_date'] = before_date
-    search_url = f"https://www.threads.com/search?{urllib.parse.urlencode(params)}"
+    encoded_kw = urllib.parse.quote(keyword)
+    search_url = f"https://www.instagram.com/explore/search/keyword/?q={encoded_kw}"
 
     posts: List[Dict] = []
     users: dict = {}
@@ -87,32 +85,30 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
                 if stop_crawling:
                     return
                 url = response.url
-                if "/graphql/query" not in url and "/api/graphql" not in url:
+                if "graphql" not in url:
                     return
 
                 data = response.json()
-                search_results = data.get("data", {}).get("searchResults")
-                if not search_results:
+                serp = data.get("data", {}).get("xdt_fbsearch__top_serp_graphql")
+                if not serp:
                     return
 
-                edges = search_results.get("edges", [])
+                edges = serp.get("edges", [])
                 for edge in edges:
                     node = edge.get("node", {})
-                    thread = node.get("thread", {})
-                    thread_id = thread.get("id")
-                    thread_items = thread.get("thread_items", [])
+                    if node.get("__typename") != "XDTTopSerpMediaGridUnit":
+                        continue
 
-                    for item in thread_items:
-                        post = item.get("post", {})
-                        if not post:
-                            continue
+                    items = node.get("items", [])
+                    for item in items:
+                        post = item.get("media") or item
 
                         post_id = str(post.get("pk", ""))
                         if not post_id or post_id in post_index:
                             continue
 
-                        parsed_post = parse_thread_post(post, thread_id)
-                        parsed_user = parse_thread_user(post)
+                        parsed_post = parse_ig_post(post)
+                        parsed_user = parse_ig_user(post)
 
                         post_index[post_id] = len(posts)
                         posts.append(parsed_post)
@@ -128,7 +124,7 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
                 pass
 
         page.on("response", handle_response)
-        print(f"\n[OK] Crawling Threads: {search_url}")
+        print(f"\n[OK] Crawling Instagram: {search_url}")
 
         try:
             page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
@@ -141,7 +137,6 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
         else:
             print(f"[WARNING] Initial load: 0 post tertangkap")
 
-        # === LOOP utama scrolling ===
         try:
             while len(posts) < limit and timeout_count < max_timeout and not stop_crawling:
                 scrolling_number += 1
@@ -179,7 +174,7 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
             page.close()
             browser.close()
 
-    # === Phase 2: User enrichment dengan async Playwright (1 tab) ===
+    # === Phase 2: User enrichment via GraphQL intercept ===
     user_list = list(users.values())
     total_users = len(user_list)
     if total_users > 0 and not stop_crawling and enrichment:
@@ -199,10 +194,38 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
 
 
 async def _enrich_single_user(tab, username, user_id, users):
-    await tab.goto(f"https://www.threads.com/@{username}",
-                   wait_until="domcontentloaded", timeout=15000)
-    html = await tab.content()
-    profile_data = parse_thread_user_profile(html)
+    profile_data = {}
+    data_received = asyncio.Event()
+
+    async def on_response(response):
+        nonlocal profile_data
+        try:
+            if "graphql" not in response.url:
+                return
+            post_data = response.request.post_data or ""
+            if IG_PROFILE_DOC_ID not in post_data:
+                return
+            data = await response.json()
+            parsed = parse_ig_user_profile(data)
+            if parsed:
+                profile_data = parsed
+                data_received.set()
+        except:
+            pass
+
+    tab.on("response", on_response)
+    try:
+        await tab.goto(f"https://www.instagram.com/{username}/",
+                       wait_until="domcontentloaded", timeout=15000)
+        try:
+            await asyncio.wait_for(data_received.wait(), timeout=5)
+        except asyncio.TimeoutError:
+            pass
+    except Exception:
+        pass
+    finally:
+        tab.remove_listener("response", on_response)
+
     if profile_data:
         users[user_id].update(profile_data)
 
@@ -241,7 +264,7 @@ async def _enrich_worker(tab, queue, users, counter, total_users, cooldown_event
             cooldown_event.set()
 
 
-async def _enrich_users_parallel(auth, users, user_list, n_tabs=3, headless=True):
+async def _enrich_users_parallel(auth, users, user_list, n_tabs=2, headless=True):
     async with async_pw() as p:
         browser = await p.chromium.launch(headless=headless)
         context = await browser.new_context()

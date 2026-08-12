@@ -65,7 +65,7 @@ Masih di terminal (setelah venv aktif), jalankan:
 ---
 
 ### 9. Export Cookies Akun
-- Export cookies dari akun **X (Twitter)** dan/atau **Threads** menggunakan Cookie Editor.
+- Export cookies dari akun **X (Twitter)**, **Threads**, dan/atau **Instagram** menggunakan Cookie Editor.
 - Simpan file `.json` ke folder `auth/` dengan nama yang mudah dikenali (contoh: `akun1.json`).
 
 - **Tutorial:**  
@@ -77,9 +77,11 @@ Masih di terminal (setelah venv aktif), jalankan:
 Buka file `main.py` dan sesuaikan:
 - `AUTH` — nama file cookies di folder `auth/` (tanpa `.json`)
 - `PROJECT_NAME` — nama project untuk folder hasil
-- `PLATFORM` — pilih `'x'`, `'threads'`, atau `'both'`
+- `MODE` — pilih `'search'` atau `'single'`
+- `PLATFORM` — kombinasi bebas: `'x'`, `'threads'`, `'ig'`, `'all'` (single: satu platform saja)
+- `ENRICHMENT` — `True` untuk enrichment user detail, `False` untuk skip
 - `LIMIT` — batas jumlah post yang diambil
-- Keyword untuk masing-masing platform
+- Keyword dan/atau URL post untuk masing-masing platform
 
 ---
 
@@ -96,10 +98,11 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 
 # PLATFORM YANG DIDUKUNG
 
-| Platform | Crawl Posts | Crawl Users | Single Post |
-|----------|-----------|-------------|-------------|
-| X (Twitter) | Ya | Ya | Ya |
-| Threads | Ya | Ya | Belum |
+| Platform | Crawl Posts | Crawl Users | Single Post | User Enrichment |
+|----------|-----------|-------------|-------------|-----------------|
+| X (Twitter) | Ya | Ya | Ya | Tidak |
+| Threads | Ya | Ya | Belum | Ya |
+| Instagram | Ya | Ya | Ya (Comments) | Ya |
 
 
 # STRUKTUR PROJECT:
@@ -111,8 +114,11 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
                     - crawler_x.py              Crawler utama X (Twitter)
                     - crawler_x_single_post.py  Crawler single post X
                     - crawler_threads.py        Crawler utama Threads
+                    - crawler_ig.py             Crawler utama Instagram
+                    - crawler_ig_single_post.py Crawler single post IG (comments)
                     - x_types.py                Parser data X
                     - thread_types.py           Parser data Threads
+                    - ig_types.py               Parser data Instagram
                     - saver.py                  Simpan hasil ke CSV
 
     4. result/      Tempat penyimpanan hasil crawling. Aman dari ketimpa data karena
@@ -137,7 +143,7 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 1. Pastikan venv aktif setiap kali kamu menjalankan perintah berbasis Python.
 2. Jika npm run start tidak jalan, pastikan Node.js sudah terinstal dan package.json berada di direktori utama project.
 3. File cookies.json bisa menyebabkan akun kamu logout jika salah digunakan — simpan dengan aman.
-4. Untuk Threads, gunakan cookies dari akun Instagram/Threads yang sudah login.
+4. Untuk Threads dan Instagram, gunakan cookies dari akun Instagram yang sudah login.
 5. Hindari penggunaan terlalu agresif (limit tinggi, tanpa jeda) untuk menghindari action-block dari platform.
 
 # AUTHOR & CREDITS

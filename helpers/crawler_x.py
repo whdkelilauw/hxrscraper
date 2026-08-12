@@ -250,7 +250,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
                             break
 
                 # Cooldown tiap 200 tweet baru
-                if new_tweets_since_last_cooldown >= 400:
+                if new_tweets_since_last_cooldown >= 200:
                     print("\n[COOLDOWN] Istirahat sejenak, cooldown 10 detik\n")
                     time.sleep(10)
                     new_tweets_since_last_cooldown = 0

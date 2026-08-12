@@ -43,6 +43,31 @@ Versi ini merupakan **rilis pertama HXRscraper**.
 
 ---
 
+## [0.3.0] - 2026-08-12
+### Added
+- Dukungan platform **Instagram** (crawling posts, users, dan single post comments)
+- `crawler_ig.py` — crawler IG search dengan GraphQL intercept dan async user enrichment
+- `crawler_ig_single_post.py` — crawler komentar single post IG (SSR + scroll + reply clicks + Show more replies)
+- `ig_types.py` — parser post, user, comment, dan SSR comment extraction
+- `save_ig_to_csv()`, `save_ig_users_to_csv()`, `save_ig_comments_to_csv()`, `save_ig_comment_users_to_csv()` di `saver.py`
+- Sistem **MODE** (`search` / `single`) di `main.py` — menggantikan mekanik comment/uncomment
+- `parse_platform()` dan `parse_mode()` di `version.py` untuk validasi input
+- Toggle **ENRICHMENT** (`True` / `False`) — skip user enrichment dan sesuaikan kolom CSV
+- Deteksi dan klik tombol **Show more replies** untuk komentar dengan >15 balasan
+- Proteksi false positive pada deteksi tombol reply menggunakan exact text matching
+- Cooldown per 100 komentar (10 detik) pada IG single post crawler
+- Support **Giphy comments** — komentar GIF disimpan sebagai `[GIF] url`
+
+### Changed
+- Kolom `text` → `full_text` pada data komentar IG (konsisten dengan posts)
+- Tambah kolom `hashtags` pada data komentar IG (parse dari full_text)
+- Kolom CSV user menyesuaikan saat `ENRICHMENT = False` (kolom kosong dihilangkan)
+- Cooldown threshold X: 400 → 200
+- Platform konfigurasi mendukung kombinasi bebas (`'ig'`, `'x, threads'`, `'all'`)
+- IG tidak menggunakan filter date (SINCE/UNTIL) karena platform tidak mendukung
+
+---
+
 ## [0.2.0] - 2026-08-11
 ### Added
 - Dukungan platform **Threads** (crawling posts dan users)
