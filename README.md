@@ -150,5 +150,4 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 HXRscraper is a tool developed by whdkelilauw
 
 > HXRscraper dibagikan bukan untuk dijual, tapi untuk dipelajari.
-
 > Non-commercial, open for knowledge—silakan pakai, ubah, sebarkan. Thanks for keeping the license included.
