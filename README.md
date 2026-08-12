@@ -106,7 +106,7 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 
 
 # STRUKTUR PROJECT:
-    1. analyze/     Berisi program untuk analisis sentimen dan Social Network Analysis (SNA).
+    1. analyze/     Berisi program untuk text preprocessing dan analisis sentimen.
 
     2. auth/        Menyimpan file cookies.json untuk autentikasi akun. Jangan dibagikan ke siapa pun!
 
@@ -149,4 +149,5 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 # AUTHOR & CREDITS
 HXRscraper is a tool developed by whdkelilauw
 
-"Scraping bukan sekadar ambil data, tapi memahami denyut digital masyarakat" ~ Hax0r Team
+> HXRscraper dibagikan bukan untuk dijual, tapi untuk dipelajari.
+> Non-commercial, open for knowledge—silakan pakai, ubah, sebarkan. Thanks for keeping the license included.
