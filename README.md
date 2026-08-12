@@ -143,7 +143,7 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
     npm run cut
 
     Ikuti menu interaktif: pilih project → pilih folder → pilih file → masukkan rentang tanggal.
-    Hasil: cut_{nama_file}.csv di folder yang sama.
+    Hasil: cut_{nama_file}_{since}_{until}.csv di folder yang sama.
 
 
 # CATATAN TAMBAHAN
