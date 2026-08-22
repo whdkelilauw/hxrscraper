@@ -10,7 +10,8 @@
   "scripts": {
     "start": "python main.py",
     "merge": "python tools/merge_data_csv.py",
-    "cut": "python tools/data_cutter.py"
+    "cut": "python tools/data_cutter.py",
+    "enrich": "python tools/re_enrich.py"
   },
   "dependencies": {}
 }

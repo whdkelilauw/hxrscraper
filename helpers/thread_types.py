@@ -146,10 +146,6 @@ def parse_thread_user(post: dict) -> dict:
 
 def parse_thread_user_profile(html: str) -> dict | None:
     """Extract user detail dari SSR script tag di profile page HTML."""
-    match = re.search(r'"follower_count":(\d+)', html)
-    if not match:
-        return None
-
     result = {}
 
     def decode_unicode(s):
@@ -158,7 +154,8 @@ def parse_thread_user_profile(html: str) -> dict | None:
         except Exception:
             return s
 
-    result["follower_count"] = int(match.group(1))
+    match = re.search(r'"follower_count":(\d+)', html)
+    result["follower_count"] = int(match.group(1)) if match else 0
 
     m = re.search(r'"biography":"((?:[^"\\]|\\.)*)"', html)
     result["biography"] = decode_unicode(m.group(1)).strip() or "-" if m else "-"
@@ -182,5 +179,8 @@ def parse_thread_user_profile(html: str) -> dict | None:
 
     m = re.search(r'"profile_tags":\{"edges":\[\{"node":\{"display_name":"([^"]+)"', html)
     result["profile_tag"] = m.group(1) if m else "-"
+
+    if all(v in (0, "-", False) for v in result.values()):
+        return None
 
     return result

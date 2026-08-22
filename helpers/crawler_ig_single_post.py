@@ -284,7 +284,10 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
     # === Fase 4: User enrichment via GraphQL intercept ===
     user_list = list(users.values())
     total_users = len(user_list)
-    if total_users > 0 and not stop_crawling and enrichment:
+    if total_users > 0 and enrichment:
+        import helpers.crawler_ig as _ig_mod
+        _ig_mod.stop_crawling = False
+        threading.Thread(target=_ig_mod.listen_for_enter, daemon=True).start()
         n_tabs = min(2, total_users)
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))

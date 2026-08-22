@@ -62,6 +62,7 @@ def prompt_choice(label, options, allow_back=False):
 def merge_csv(input_folder):
     all_files = glob.glob(os.path.join(input_folder, "*.csv"))
     all_files = [f for f in all_files if not os.path.basename(f).startswith("merged")]
+    all_files.sort(key=lambda f: os.path.getmtime(f))
 
     if not all_files:
         print("[WARNING] Tidak ada file CSV di folder:", input_folder)
@@ -92,7 +93,7 @@ def merge_csv(input_folder):
             (merged_df[id_col].astype(str).str.strip() != "") &
             (merged_df[id_col].astype(str).str.strip() != "-")
         ]
-        merged_df = merged_df.drop_duplicates(subset=id_col, keep="first")
+        merged_df = merged_df.drop_duplicates(subset=id_col, keep="last")
         removed = before - len(merged_df)
         if removed > 0:
             print(f"[OK] {removed} baris duplikat/kosong dihapus (kolom: {id_col})")

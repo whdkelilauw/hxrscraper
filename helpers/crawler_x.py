@@ -171,7 +171,44 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
             page.goto(search_url, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_selector("article", timeout=30000)
         except Exception as e:
-            print("[WARNING] ",e)
+            print("[WARNING] ", e)
+
+        # Handle rate limit saat initial load
+        try:
+            retry_attempts = 0
+
+            while True:
+                retry_button = page.locator("text=Retry").first
+
+                if not retry_button.is_visible() or stop_crawling:
+                    break
+
+                retry_attempts += 1
+
+                if retry_attempts > 20:
+                    print(f"[WARNING] Scroll limit terdeteksi melebihi 20 kali. Crawling dihentikan.")
+                    stop_crawling = True
+                    break
+
+                try:
+                    retry_button.click()
+                except:
+                    pass
+
+                page.wait_for_timeout(5000)
+
+                if page.locator("text=Retry").first.is_visible():
+                    print(f"\n[WARNING] Scroll limit terdeteksi {retry_attempts} kali.")
+                    print("[COOLDOWN] Istirahat sejenak, cooldown 1 menit")
+                    time.sleep(55)
+                else:
+                    print("\n[OK] Limit hilang, continue crawling\n")
+                    break
+
+        except PlaywrightTimeoutError:
+            pass
+        except Exception as e:
+            print(f"[WARNING] Retry handler error: {e}")
 
         if len(tweets) > 0:
             print(f"[OK] Initial load: {len(tweets)} tweet tertangkap")

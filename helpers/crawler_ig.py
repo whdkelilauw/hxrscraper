@@ -177,7 +177,9 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
     # === Phase 2: User enrichment via GraphQL intercept ===
     user_list = list(users.values())
     total_users = len(user_list)
-    if total_users > 0 and not stop_crawling and enrichment:
+    if total_users > 0 and enrichment:
+        stop_crawling = False
+        threading.Thread(target=listen_for_enter, daemon=True).start()
         n_tabs = min(2, total_users)
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
@@ -194,6 +196,8 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
 
 
 async def _enrich_single_user(tab, username, user_id, users):
+    if stop_crawling:
+        return
     profile_data = {}
     data_received = asyncio.Event()
 
@@ -215,6 +219,8 @@ async def _enrich_single_user(tab, username, user_id, users):
 
     tab.on("response", on_response)
     try:
+        if stop_crawling:
+            return
         await tab.goto(f"https://www.instagram.com/{username}/",
                        wait_until="domcontentloaded", timeout=15000)
         try:
@@ -231,7 +237,13 @@ async def _enrich_single_user(tab, username, user_id, users):
 
 
 async def _enrich_worker(tab, queue, users, counter, total_users, cooldown_event):
+    consecutive_errors = 0
+    max_consecutive_errors = 10
+
     while True:
+        if stop_crawling:
+            break
+
         await cooldown_event.wait()
 
         try:
@@ -248,19 +260,32 @@ async def _enrich_worker(tab, queue, users, counter, total_users, cooldown_event
         try:
             await _enrich_single_user(tab, username, user_id, users)
             counter["done"] += 1
-            fc = users[user_id].get('follower_count', '?')
-            print(f"  [{counter['done']}/{total_users}] @{username} -> followers: {fc}")
+            consecutive_errors = 0
+            mc = users[user_id].get('media_count', '?')
+            print(f"  [{counter['done']}/{total_users}] @{username} -> media: {mc}")
         except Exception as e:
             counter["done"] += 1
+            consecutive_errors += 1
             print(f"  [{counter['done']}/{total_users}] @{username} -> error: {e}")
 
+            if consecutive_errors >= max_consecutive_errors:
+                print(f"\n  [STOP] {max_consecutive_errors} error berturut-turut, browser kemungkinan crash. Menghentikan worker.\n")
+                break
+
         queue.task_done()
+
+        if stop_crawling:
+            break
 
         if counter["done"] % 20 == 0 and counter["done"] < total_users:
             cooldown_event.clear()
             pause = 5
             print(f"\n  [COOLDOWN] {counter['done']}/{total_users} selesai, istirahat {pause} detik...\n")
-            await asyncio.sleep(pause)
+            for _ in range(pause * 2):
+                if stop_crawling:
+                    cooldown_event.set()
+                    break
+                await asyncio.sleep(0.5)
             cooldown_event.set()
 
 
@@ -303,6 +328,9 @@ async def _enrich_users_parallel(auth, users, user_list, n_tabs=2, headless=True
 
         await asyncio.gather(*tasks)
 
-        for tab in tabs:
-            await tab.close()
-        await browser.close()
+        try:
+            for tab in tabs:
+                await tab.close()
+            await browser.close()
+        except Exception:
+            pass
