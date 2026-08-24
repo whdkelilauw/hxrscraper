@@ -12,6 +12,7 @@ RESULT_DIR = "result"
 
 IG_INDICATOR_COLS = ["follower_count", "following_count", "media_count", "category", "biography"]
 THREADS_INDICATOR_COLS = ["follower_count", "view_count", "profile_tag", "biography"]
+FB_INDICATOR_COLS = ["follower_count", "following_count", "friend_count", "category", "biography"]
 
 
 def scan_projects():
@@ -38,10 +39,12 @@ def scan_user_files(project):
 
 def detect_platform(df):
     cols = set(df.columns)
-    if "category" in cols:
-        return "ig"
+    if "friend_count" in cols:
+        return "fb"
     if "view_count" in cols or "profile_tag" in cols:
         return "threads"
+    if "media_count" in cols or "category" in cols:
+        return "ig"
     return None
 
 
@@ -134,13 +137,15 @@ if __name__ == "__main__":
             platform = detect_platform(df)
 
             if not platform:
-                print("  [!] Tidak bisa mendeteksi platform (bukan IG/Threads users). Pilih file lain.")
+                print("  [!] Tidak bisa mendeteksi platform (bukan IG/Threads/FB users). Pilih file lain.")
                 continue
 
             if platform == "ig":
                 indicator_cols = IG_INDICATOR_COLS
-            else:
+            elif platform == "threads":
                 indicator_cols = THREADS_INDICATOR_COLS
+            else:
+                indicator_cols = FB_INDICATOR_COLS
 
             failed_mask = df.apply(lambda row: is_failed(row, indicator_cols), axis=1)
             failed_df = df[failed_mask]
@@ -150,7 +155,7 @@ if __name__ == "__main__":
                 print(f"\n[OK] Semua {len(df)} users sudah ter-enrich. Tidak ada yang perlu di-retry.")
                 continue
 
-            platform_label = "Instagram" if platform == "ig" else "Threads"
+            platform_label = {"ig": "Instagram", "threads": "Threads", "fb": "Facebook"}[platform]
             print(f"\n[OK] Platform: {platform_label}")
             print(f"[OK] Total users: {len(df)}")
             print(f"[OK] Gagal enrich: {total_failed}")
@@ -187,9 +192,12 @@ if __name__ == "__main__":
             if platform == "ig":
                 import helpers.crawler_ig as _crawler
                 from helpers.crawler_ig import _enrich_users_parallel as enrich_fn
-            else:
+            elif platform == "threads":
                 import helpers.crawler_threads as _crawler
                 from helpers.crawler_threads import _enrich_users_parallel as enrich_fn
+            else:
+                import helpers.crawler_fb as _crawler
+                from helpers.crawler_fb import _enrich_users_parallel as enrich_fn
 
             _crawler.stop_crawling = False
             threading.Thread(target=_crawler.listen_for_enter, daemon=True).start()

@@ -65,7 +65,7 @@ Masih di terminal (setelah venv aktif), jalankan:
 ---
 
 ### 9. Export Cookies Akun
-- Export cookies dari akun **X (Twitter)**, **Threads**, dan/atau **Instagram** menggunakan Cookie Editor.
+- Export cookies dari akun **X (Twitter)**, **Threads**, **Instagram**, dan/atau **Facebook** menggunakan Cookie Editor.
 - Simpan file `.json` ke folder `auth/` dengan nama yang mudah dikenali (contoh: `akun1.json`).
 
 - **Tutorial:**  
@@ -78,7 +78,7 @@ Buka file `main.py` dan sesuaikan:
 - `AUTH` — nama file cookies di folder `auth/` (tanpa `.json`)
 - `PROJECT_NAME` — nama project untuk folder hasil
 - `MODE` — pilih `'search'` atau `'single'`
-- `PLATFORM` — kombinasi bebas: `'x'`, `'threads'`, `'ig'`, `'all'` (single: satu platform saja)
+- `PLATFORM` — kombinasi bebas: `'x'`, `'threads'`, `'ig'`, `'fb'`, `'all'` (single: satu platform saja)
 - `ENRICHMENT` — `True` untuk enrichment user detail, `False` untuk skip
 - `LIMIT` — batas jumlah post yang diambil
 - Keyword dan/atau URL post untuk masing-masing platform
@@ -103,6 +103,7 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 | X (Twitter) | Ya | Ya | Ya | Tidak |
 | Threads | Ya | Ya | Belum | Ya |
 | Instagram | Ya | Ya | Ya (Comments) | Ya |
+| Facebook | Ya | Ya | Belum | Ya |
 
 
 # STRUKTUR PROJECT:
@@ -116,9 +117,11 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
                     - crawler_threads.py        Crawler utama Threads
                     - crawler_ig.py             Crawler utama Instagram
                     - crawler_ig_single_post.py Crawler single post IG (comments)
+                    - crawler_fb.py             Crawler utama Facebook
                     - x_types.py                Parser data X
                     - thread_types.py           Parser data Threads
                     - ig_types.py               Parser data Instagram
+                    - fb_types.py               Parser data Facebook
                     - saver.py                  Simpan hasil ke CSV
 
     4. result/      Tempat penyimpanan hasil crawling. Aman dari ketimpa data karena
@@ -128,6 +131,7 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
     5. tools/       Berisi alat bantu untuk mengelola hasil crawling:
                     - merge_data_csv.py   Gabung beberapa file CSV jadi satu (semua platform & tipe data)
                     - data_cutter.py      Potong data berdasarkan rentang tanggal
+                    - re_enrich.py        Re-enrich user yang gagal (IG, Threads, FB)
 
 ## Cara pakai tools:
 
@@ -151,7 +155,8 @@ Tekan tombol enter di terminal kapan saja untuk menghentikan crawling.
 2. Jika npm run start tidak jalan, pastikan Node.js sudah terinstal dan package.json berada di direktori utama project.
 3. File cookies.json bisa menyebabkan akun kamu logout jika salah digunakan — simpan dengan aman.
 4. Untuk Threads dan Instagram, gunakan cookies dari akun Instagram yang sudah login.
-5. Hindari penggunaan terlalu agresif (limit tinggi, tanpa jeda) untuk menghindari action-block dari platform.
+5. Untuk Facebook, gunakan cookies dari akun Facebook yang sudah login.
+6. Hindari penggunaan terlalu agresif (limit tinggi, tanpa jeda) untuk menghindari action-block dari platform.
 
 # AUTHOR & CREDITS
 HXRscraper is a tool developed by whdkelilauw

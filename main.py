@@ -4,7 +4,8 @@ from helpers.crawler_x_single_post import crawl_single_post
 from helpers.crawler_threads import crawl_threads
 from helpers.crawler_ig import crawl_ig
 from helpers.crawler_ig_single_post import crawl_ig_single_post
-from helpers.saver import save_to_csv, save_users_to_csv, save_threads_to_csv, save_threads_users_to_csv, save_ig_to_csv, save_ig_users_to_csv, save_ig_comments_to_csv, save_ig_comment_users_to_csv
+from helpers.crawler_fb import crawl_fb
+from helpers.saver import save_to_csv, save_users_to_csv, save_threads_to_csv, save_threads_users_to_csv, save_ig_to_csv, save_ig_users_to_csv, save_ig_comments_to_csv, save_ig_comment_users_to_csv, save_fb_to_csv, save_fb_users_to_csv
 from version import banner, parse_platform, parse_mode
 banner()
 
@@ -13,26 +14,26 @@ banner()
 # ======================================================
 # Nama file cookies di folder auth/ (tanpa .json)
 # Contoh: AUTH = 'akun1' → akan membaca auth/akun1.json
-AUTH = ''
-PROJECT_NAME = ''
+AUTH = 'cloth'
+PROJECT_NAME = 'zzz'
 
 # Mode: 'search' (crawl berdasarkan keyword) atau 'single' (crawl satu post)
-MODE = ''
+MODE = 'search'
 
-# Kombinasi bebas, pisahkan dengan koma: 'x', 'threads', 'ig', 'all'
-# Contoh: 'ig', 'x, threads', 'ig, x', 'all'
+# Kombinasi bebas, pisahkan dengan koma: 'x', 'threads', 'ig', 'fb', 'all'
+# Contoh: 'ig', 'x, threads', 'ig, fb', 'all'
 # Untuk mode single: pilih satu platform saja ('x' atau 'ig')
-PLATFORM = ''
+PLATFORM = 'fb'
 
 # Rentang tanggal — OPSIONAL, mode search (X dan Threads saja, IG tidak support)
 # Format: 'YYYY-MM-DD' atau kosongkan '' jika tidak ingin filter tanggal
 # X juga mendukung format waktu persis: 'YYYY-MM-DD_HH:MM:SS_WIB'
-SINCE = ''
-UNTIL = ''
+SINCE = '2026-08-17'
+UNTIL = '2026-08-17_12:36:15_WIB'
 
-LIMIT = 50000
+LIMIT = 20
 HEADLESS = False
-ENRICHMENT = False
+ENRICHMENT = True
 
 if __name__ == "__main__":
     project = (PROJECT_NAME or 'default').strip()
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     # CONFIG X / Twitter
     # ======================================================
     # Kata kunci — bisa kombinasikan dengan operator logika (AND, OR, exact phrase)
-    x_keyword = ''
+    x_keyword = '(("BEM UI" (demo OR aksi OR unjuk)) OR ("BEM UI" Bundaran) OR ("BEM UI" (Sudirman OR "Dukuh Atas")) OR (BEM reynold) OR (fatimah reynold) OR (BEM AND UI AND (aksi OR demo)))'
 
     # Kata yang dikecualikan, diawali strip (-)
     x_excluded = ''
@@ -70,6 +71,15 @@ if __name__ == "__main__":
     ig_post_url = ""
 
     # ======================================================
+    # CONFIG Facebook
+    # ======================================================
+    # Kata kunci — keyword sederhana
+    fb_keyword = 'BEM UI'
+
+    # Filter tahun — OPSIONAL, kosongkan '' jika tidak ingin filter tahun
+    fb_year = ''
+
+    # ======================================================
     # EKSEKUSI
     # ======================================================
 
@@ -90,6 +100,11 @@ if __name__ == "__main__":
             ig_posts, ig_users = crawl_ig(ig_keyword, AUTH, LIMIT, HEADLESS, ENRICHMENT)
             save_ig_to_csv(ig_posts, project, f"{project}-ig-posts.csv")
             save_ig_users_to_csv(ig_users, project, f"{project}-ig-users.csv", ENRICHMENT)
+
+        if 'fb' in platforms or 'all' in platforms:
+            fb_posts, fb_users = crawl_fb(fb_keyword, AUTH, fb_year, LIMIT, HEADLESS, ENRICHMENT)
+            save_fb_to_csv(fb_posts, project, f"{project}-fb-posts.csv")
+            save_fb_users_to_csv(fb_users, project, f"{project}-fb-users.csv", ENRICHMENT)
 
     elif mode == 'single':
         if 'x' in platforms:
