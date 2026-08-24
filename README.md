@@ -50,8 +50,8 @@ Di terminal VSCode, jalankan:
 ### 7. Install Dependencies
 Masih di terminal (setelah venv aktif), jalankan:
 
-    playwright install
     pip install -r requirements.txt
+    python -m playwright install
 
 ---
 
