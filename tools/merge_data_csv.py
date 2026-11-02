@@ -5,7 +5,7 @@ import pandas as pd
 
 RESULT_DIR = "result"
 DATE_FORMAT = "%a %b %d %H:%M:%S %z %Y"
-ID_COLUMNS = ["tweet_id_str", "post_id_str", "comment_id_str", "user_id_str"]
+ID_COLUMNS = ["tweet_id_str", "post_id_str", "comment_id_str", "user_id_str", "article_id_str"]
 
 
 def scan_projects():
@@ -113,16 +113,17 @@ def merge_csv(input_folder):
         if removed > 0:
             print(f"[OK] {removed} baris duplikat/kosong dihapus (kolom: {id_col}, prioritas: data terlengkap)")
 
-    if "created_at" in merged_df.columns:
+    date_col = "created_at" if "created_at" in merged_df.columns else "published_at" if "published_at" in merged_df.columns else None
+    if date_col:
         try:
             temp_sort = pd.to_datetime(
-                merged_df["created_at"], format=DATE_FORMAT, errors="coerce"
+                merged_df[date_col], format=DATE_FORMAT, errors="coerce"
             )
             if temp_sort.notna().sum() > 0:
                 merged_df = merged_df.loc[
                     temp_sort.sort_values(ascending=False).index
                 ].reset_index(drop=True)
-                print(f"[OK] Diurutkan berdasarkan created_at (terbaru di atas)")
+                print(f"[OK] Diurutkan berdasarkan {date_col} (terbaru di atas)")
         except Exception:
             pass
 

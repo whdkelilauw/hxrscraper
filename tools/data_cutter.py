@@ -66,11 +66,12 @@ def cut_csv_by_date(input_file, output_file, since, until):
     df = pd.read_csv(input_file)
     print(f"[OK] {len(df)} baris dimuat")
 
-    if "created_at" not in df.columns:
-        print("[WARNING] Kolom 'created_at' tidak ditemukan — tidak bisa potong by tanggal.")
+    date_col = "created_at" if "created_at" in df.columns else "published_at" if "published_at" in df.columns else None
+    if not date_col:
+        print("[WARNING] Kolom 'created_at' atau 'published_at' tidak ditemukan — tidak bisa potong by tanggal.")
         return None
 
-    df["_dt"] = pd.to_datetime(df["created_at"], format=DATE_FORMAT, errors="coerce")
+    df["_dt"] = pd.to_datetime(df[date_col], format=DATE_FORMAT, errors="coerce")
 
     since_dt = pd.to_datetime(since).date() if since else None
     until_dt = pd.to_datetime(until).date() if until else None

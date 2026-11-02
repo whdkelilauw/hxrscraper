@@ -1,13 +1,13 @@
 __title__ = "hxrscraper"
 __description__ = "A multi-platform social media crawling tool for academic and non-commercial purposes"
-__version__ = "0.4.0"
+__version__ = "0.6.0"
 __license__ = "HXRscraper License | Custom MIT Variant"
 __author__ = "whdkelilauw"
 __main_file__ = "main.py"
 __created__ = "2025-09-12"
-__updated__ = "2026-08-24"
+__updated__ = "2026-11-03"
 
-VALID_PLATFORMS = {'x', 'threads', 'ig', 'fb', 'all'}
+VALID_PLATFORMS = {'x', 'threads', 'ig', 'fb', 'article', 'all'}
 VALID_MODES = {'search', 'single'}
 SINGLE_PLATFORMS = {'x', 'ig'}
 
@@ -16,7 +16,7 @@ def parse_platform(raw: str) -> set:
     invalid = platforms - VALID_PLATFORMS
     if invalid:
         print(f"[ERROR] Platform tidak dikenali: {', '.join(invalid)}")
-        print(f"        Platform yang tersedia: x, threads, ig, fb, all")
+        print(f"        Platform yang tersedia: x, threads, ig, fb, article, all")
         exit(1)
     return platforms
 

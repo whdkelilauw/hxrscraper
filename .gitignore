@@ -2,6 +2,7 @@
 venv/
 ENV/
 env/
+__chrome_profile/
 __pycache__
 .debug/
 .backup/

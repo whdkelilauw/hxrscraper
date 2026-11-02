@@ -602,6 +602,61 @@ def save_fb_to_csv(posts: List[Dict], project_name: str, filename: str):
     print(f"[OK] {len(posts_sorted)} Post Facebook tersimpan di: {filepath}")
 
 
+def save_articles_to_csv(articles: List[Dict], project_name: str, filename: str):
+    base_folder = f"result/{project_name}/article"
+    os.makedirs(base_folder, exist_ok=True)
+    filepath = os.path.join(base_folder, filename)
+
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    while os.path.exists(filepath):
+        filepath = os.path.join(base_folder, f"{base}_{counter}{ext}")
+        counter += 1
+
+    def parse_date(t):
+        try:
+            return datetime.strptime(t.get("published_at", ""), "%a %b %d %H:%M:%S %z %Y")
+        except Exception:
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+    articles_sorted = sorted(articles, key=parse_date, reverse=True)
+
+    if not articles_sorted:
+        print("[WARNING] Tidak ada data artikel untuk disimpan.")
+        return
+
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "article_id_str",
+            "url",
+            "title",
+            "source",
+            "author",
+            "published_at",
+            "description",
+            "full_text",
+            "image_url",
+            "serp_position",
+        ])
+
+        for a in articles_sorted:
+            writer.writerow([
+                a.get("article_id_str", "-"),
+                a.get("url", "-"),
+                a.get("title", "-"),
+                a.get("source", "-"),
+                a.get("author", "-"),
+                a.get("published_at", "-"),
+                a.get("description", "-").replace("\r", "\n"),
+                a.get("full_text", "-").replace("\r", "\n"),
+                a.get("image_url", "-"),
+                a.get("serp_position", 0),
+            ])
+
+    print(f"[OK] {len(articles_sorted)} Artikel tersimpan di: {filepath}")
+
+
 def save_fb_users_to_csv(users: list, project_name: str, filename: str, enrichment: bool = True):
     base_folder = f"result/{project_name}/fb/users"
     os.makedirs(base_folder, exist_ok=True)

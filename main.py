@@ -5,7 +5,8 @@ from helpers.crawler_threads import crawl_threads
 from helpers.crawler_ig import crawl_ig
 from helpers.crawler_ig_single_post import crawl_ig_single_post
 from helpers.crawler_fb import crawl_fb
-from helpers.saver import save_to_csv, save_users_to_csv, save_threads_to_csv, save_threads_users_to_csv, save_ig_to_csv, save_ig_users_to_csv, save_ig_comments_to_csv, save_ig_comment_users_to_csv, save_fb_to_csv, save_fb_users_to_csv
+from helpers.crawler_article import crawl_articles
+from helpers.saver import save_to_csv, save_users_to_csv, save_threads_to_csv, save_threads_users_to_csv, save_ig_to_csv, save_ig_users_to_csv, save_ig_comments_to_csv, save_ig_comment_users_to_csv, save_fb_to_csv, save_fb_users_to_csv, save_articles_to_csv
 from version import banner, parse_platform, parse_mode
 banner()
 
@@ -15,7 +16,7 @@ banner()
 # Nama file cookies di folder auth/ (tanpa .json)
 # Contoh: AUTH = 'akun1' → akan membaca auth/akun1.json
 AUTH = 'ali'
-PROJECT_NAME = 'pilkda_tidak_langsung'
+PROJECT_NAME = 'pilkada_tidak_langsung'
 
 # Mode: 'search' (crawl berdasarkan keyword) atau 'single' (crawl satu post)
 MODE = 'search'
@@ -23,12 +24,13 @@ MODE = 'search'
 # Berlaku untuk X, Threads, dan Facebook. Tidak berlaku untuk IG.
 SORT = 'recent'
 
-# Kombinasi bebas, pisahkan dengan koma: 'x', 'threads', 'ig', 'fb', 'all'
-# Contoh: 'ig', 'x, threads', 'ig, fb', 'all'
+# Kombinasi bebas, pisahkan dengan koma: 'x', 'threads', 'ig', 'fb', 'article', 'all'
+# Contoh: 'ig', 'x, threads', 'ig, fb', 'article', 'all'
+# Catatan: 'all' mencakup semua platform termasuk article
 # Untuk mode single: pilih satu platform saja ('x' atau 'ig')
-PLATFORM = 'x'
+PLATFORM = 'article'
 
-# Rentang tanggal — OPSIONAL, mode search (X dan Threads saja, IG tidak support)
+# Rentang tanggal — OPSIONAL, mode search (X, Threads, dan Article. IG tidak support)
 # Format: 'YYYY-MM-DD' atau kosongkan '' jika tidak ingin filter tanggal
 # X juga mendukung format waktu persis: 'YYYY-MM-DD_HH:MM:SS_WIB'
 SINCE = ''
@@ -47,7 +49,7 @@ if __name__ == "__main__":
     # CONFIG X / Twitter
     # ======================================================
     # Kata kunci — bisa kombinasikan dengan operator logika (AND, OR, exact phrase)
-    x_keyword = '(pilkda OR "pemilihan kepala daerah") (tidak OR tak) langsung'
+    x_keyword = '(pilkada OR "pemilihan kepala daerah") (tidak OR tak) langsung'
 
     # Kata yang dikecualikan, diawali strip (-)
     x_excluded = '-vcs -lesbi -"prank ojol"'
@@ -65,13 +67,21 @@ if __name__ == "__main__":
     # CONFIG Threads
     # ======================================================
     # Kata kunci — hanya keyword sederhana belum support operator
-    threads_keyword = ''
+    threads_keyword = 'pilkada tidak langsung'
+    # pilkada tidak langsung
+    # pilkada tak langsung
+    # pemilihan kepala daerah tidak langsung
+    # pemilihan kepala daerah tak langsung
 
     # ======================================================
     # CONFIG Instagram
     # ======================================================
     # Kata kunci — keyword sederhana
-    ig_keyword = 'ijasah gibran'
+    ig_keyword = 'pilkada tidak langsung'
+    # pilkada tidak langsung
+    # pilkada tak langsung
+    # pemilihan kepala daerah tidak langsung
+    # pemilihan kepala daerah tak langsung
 
     # URL single post IG
     ig_post_url = ""
@@ -84,6 +94,15 @@ if __name__ == "__main__":
 
     # Filter tahun — OPSIONAL, kosongkan '' jika tidak ingin filter tahun
     fb_year = ''
+
+    # ======================================================
+    # CONFIG Article (Google News)
+    # ======================================================
+    # Membutuhkan Chrome profile — jalankan `python tools/setup_chrome_profile.py` terlebih dahulu.
+    # Jumlah halaman SERP yang tersedia bergantung pada akun Google yang digunakan.
+    # Jika hasil terbatas, coba setup ulang dengan akun Google berbeda.
+    # Kata kunci — bisa kombinasikan dengan operator ("exact phrase", site:, intitle:, -exclude, | (OR))
+    article_keyword = '("pemilihan kepala daerah" | pilkada) (tidak | tak) langsung'
 
     # ======================================================
     # EKSEKUSI
@@ -111,6 +130,10 @@ if __name__ == "__main__":
             fb_posts, fb_users = crawl_fb(fb_keyword, AUTH, fb_year, LIMIT, HEADLESS, ENRICHMENT, SORT)
             save_fb_to_csv(fb_posts, project, f"{project}-fb-posts.csv")
             save_fb_users_to_csv(fb_users, project, f"{project}-fb-users.csv", ENRICHMENT)
+
+        if 'article' in platforms or 'all' in platforms:
+            articles = crawl_articles(article_keyword, SINCE, UNTIL, LIMIT, HEADLESS, SORT)
+            save_articles_to_csv(articles, project, f"{project}-articles.csv")
 
     elif mode == 'single':
         if 'x' in platforms:

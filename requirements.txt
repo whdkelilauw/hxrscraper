@@ -56,7 +56,7 @@ pandas==2.3.3
 parso==0.8.5
 pillow==12.0.0
 platformdirs==4.5.0
-playwright==1.55.0
+playwright==1.64.1
 plotly==6.3.1
 prettytable==3.17.0
 prompt_toolkit==3.0.52
