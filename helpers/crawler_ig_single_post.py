@@ -56,9 +56,10 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
     timeout_count = 0
     max_timeout = 3
     comments_since_cooldown = 0
+    last_seen_created_at = None
 
     def add_comment(node):
-        nonlocal comments_since_cooldown
+        nonlocal comments_since_cooldown, last_seen_created_at
         comment_id = str(node.get("pk", ""))
         if not comment_id or comment_id in comment_index:
             return
@@ -66,6 +67,9 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
         parsed_user = parse_ig_comment_user(node)
         comment_index[comment_id] = len(comments)
         comments.append(parsed)
+        created_at = parsed.get("created_at")
+        if created_at and created_at != "-":
+            last_seen_created_at = created_at
         comments_since_cooldown += 1
         user_id = parsed_user.get("user_id_str", "")
         if user_id != "-" and user_id not in users:
@@ -83,9 +87,7 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
         context.add_cookies(cookies)
 
         page = context.new_page()
-        page.route("**/*.{png,jpg,jpeg,gif,webp,svg,mp4,webm,m3u8,ts}", lambda route: route.abort())
-        page.route("**/instagram.*.fna.fbcdn.net/**", lambda route: route.abort())
-        page.route("**/scontent.*.fna.fbcdn.net/**", lambda route: route.abort())
+        page.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media") else route.continue_())
 
         def handle_response(response):
             try:
@@ -150,6 +152,8 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
                 comments_added = len(comments) - comments_before
 
                 if stop_crawling:
+                    if last_seen_created_at:
+                        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at}")
                     break
 
                 if comments_added > 0:
@@ -167,6 +171,8 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
                         scrolling_number = 0
                         print(f"[WARNING] Timeout ({timeout_count}/{max_timeout})")
                         if timeout_count >= max_timeout:
+                            if last_seen_created_at:
+                                print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at}")
                             break
 
         except Exception:
@@ -291,5 +297,8 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
         n_tabs = min(2, total_users)
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
+
+    if last_seen_created_at:
+        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at}")
 
     return comments, list(users.values())

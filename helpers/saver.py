@@ -567,6 +567,8 @@ def save_fb_to_csv(posts: List[Dict], project_name: str, filename: str):
             "media_url",
             "image_caption",
             "post_url",
+            "group_id",
+            "group_name",
         ])
 
         for t in posts_sorted:
@@ -593,6 +595,8 @@ def save_fb_to_csv(posts: List[Dict], project_name: str, filename: str):
                 t.get("media_url", "-"),
                 t.get("image_caption", "-"),
                 t.get("post_url", "-"),
+                t.get("group_id", "-"),
+                t.get("group_name", "-"),
             ])
 
     print(f"[OK] {len(posts_sorted)} Post Facebook tersimpan di: {filepath}")

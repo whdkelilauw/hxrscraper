@@ -17,15 +17,17 @@ def scan_data_folders(project):
     project_dir = os.path.join(RESULT_DIR, project)
     folders = []
     for root, dirs, files in os.walk(project_dir):
-        csv_files = [f for f in files if f.endswith(".csv")]
+        rel_path = os.path.relpath(root, project_dir)
+        if "user" in rel_path.lower():
+            continue
+        csv_files = [f for f in files if f.endswith(".csv") and "user" not in f.lower()]
         if csv_files:
-            rel_path = os.path.relpath(root, project_dir)
             folders.append((rel_path, len(csv_files)))
     return sorted(folders)
 
 
 def scan_csv_files(folder):
-    files = [f for f in os.listdir(folder) if f.endswith(".csv")]
+    files = [f for f in os.listdir(folder) if f.endswith(".csv") and "user" not in f.lower()]
     return sorted(files)
 
 
@@ -58,7 +60,7 @@ def prompt_choice(label, options, allow_back=False):
 def cut_csv_by_date(input_file, output_file, since, until):
     if not os.path.exists(input_file):
         print("[WARNING] File tidak ditemukan:", input_file)
-        return
+        return None
 
     print(f"\n[OK] Memuat: {os.path.basename(input_file)}")
     df = pd.read_csv(input_file)
@@ -66,7 +68,7 @@ def cut_csv_by_date(input_file, output_file, since, until):
 
     if "created_at" not in df.columns:
         print("[WARNING] Kolom 'created_at' tidak ditemukan — tidak bisa potong by tanggal.")
-        return
+        return None
 
     df["_dt"] = pd.to_datetime(df["created_at"], format=DATE_FORMAT, errors="coerce")
 
@@ -75,7 +77,7 @@ def cut_csv_by_date(input_file, output_file, since, until):
 
     if since_dt and until_dt and since_dt > until_dt:
         print("[WARNING] Tanggal 'since' lebih besar dari 'until'.")
-        return
+        return None
 
     mask = pd.Series(True, index=df.index)
     if since_dt:
@@ -91,6 +93,48 @@ def cut_csv_by_date(input_file, output_file, since, until):
 
     cut_df.to_csv(output_file, index=False, encoding="utf-8")
     print(f"[OK] Tersimpan: {output_file}")
+
+    if "user_id_str" in cut_df.columns:
+        return set(cut_df["user_id_str"].astype(str))
+    return None
+
+
+def clean_users_for_cut(posts_folder, user_ids, since, until):
+    parent = os.path.dirname(posts_folder)
+    users_folder = os.path.join(parent, "users")
+    if not os.path.isdir(users_folder):
+        return
+
+    csv_files = [f for f in os.listdir(users_folder) if f.endswith(".csv")]
+    if not csv_files:
+        return
+
+    users_file = csv_files[0]
+    users_path = os.path.join(users_folder, users_file)
+
+    users_df = pd.read_csv(users_path)
+    if "user_id_str" not in users_df.columns:
+        return
+
+    before = len(users_df)
+    clean_df = users_df[users_df["user_id_str"].astype(str).isin(user_ids)]
+    removed = before - len(clean_df)
+
+    if removed > 0:
+        name, ext = os.path.splitext(users_file)
+        date_key = f"{since or 'start'}_{until or 'end'}"
+        output_path = os.path.join(users_folder, f"cut_{name}_{date_key}{ext}")
+        base, ext = os.path.splitext(output_path)
+        counter = 1
+        while os.path.exists(output_path):
+            output_path = f"{base}_{counter}{ext}"
+            counter += 1
+
+        clean_df.to_csv(output_path, index=False, encoding="utf-8")
+        print(f"\n[OK] {removed} user dihilangkan (tidak termasuk dalam hasil cut)")
+        print(f"[OK] {len(clean_df)} user tersimpan di: {output_path}")
+    else:
+        print(f"\n[OK] Semua {before} user masih termasuk dalam hasil cut")
 
 
 if __name__ == "__main__":
@@ -201,5 +245,7 @@ if __name__ == "__main__":
                 output_path = f"{base}_{counter}{ext}"
                 counter += 1
 
-            cut_csv_by_date(input_path, output_path, since, until)
+            user_ids = cut_csv_by_date(input_path, output_path, since, until)
+            if user_ids is not None:
+                clean_users_for_cut(folder_path, user_ids, since, until)
             break

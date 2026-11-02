@@ -10,10 +10,11 @@ from helpers.ig_types import parse_ig_post, parse_ig_user, parse_ig_user_profile
 import msvcrt
 import threading
 import urllib.parse
+import re
 
 stop_crawling = False
 
-IG_PROFILE_DOC_ID = "38611279431804694"
+_discovered_doc_id = None
 
 
 def listen_for_enter():
@@ -60,6 +61,7 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
     max_timeout = 3
     new_posts_since_last_scroll = 0
     new_posts_since_last_cooldown = 0
+    last_seen_created_at = None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -75,12 +77,10 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
         context.add_cookies(cookies)
         page = context.new_page()
 
-        page.route("**/*.{png,jpg,jpeg,gif,webp,svg,mp4,webm,m3u8,ts}", lambda route: route.abort())
-        page.route("**/instagram.*.fna.fbcdn.net/**", lambda route: route.abort())
-        page.route("**/scontent.*.fna.fbcdn.net/**", lambda route: route.abort())
+        page.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media") else route.continue_())
 
         def handle_response(response):
-            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown
+            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown, last_seen_created_at
             try:
                 if stop_crawling:
                     return
@@ -112,6 +112,10 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
 
                         post_index[post_id] = len(posts)
                         posts.append(parsed_post)
+
+                        created_at = parsed_post.get("created_at")
+                        if created_at and created_at != "-":
+                            last_seen_created_at = created_at
 
                         user_id = parsed_user.get("user_id_str", "")
                         if user_id != "-" and user_id not in users:
@@ -146,6 +150,8 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
                 posts_added = len(posts) - posts_before
 
                 if stop_crawling:
+                    if last_seen_created_at:
+                        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
                     break
 
                 if posts_added > 0:
@@ -163,6 +169,8 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
 
                         if timeout_count >= max_timeout:
                             print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
+                            if last_seen_created_at:
+                                print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
                             break
 
                 if new_posts_since_last_cooldown >= 200:
@@ -184,6 +192,9 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
 
+    if last_seen_created_at:
+        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
+
     total_parsed = len(posts)
     if total_parsed == limit:
         final_result = posts[:limit]
@@ -195,7 +206,14 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
     return final_result, list(users.values())
 
 
+def _is_valid_profile(parsed):
+    if not parsed:
+        return False
+    return not all(v in (0, "-", False) for v in parsed.values())
+
+
 async def _enrich_single_user(tab, username, user_id, users):
+    global _discovered_doc_id
     if stop_crawling:
         return
     profile_data = {}
@@ -203,17 +221,30 @@ async def _enrich_single_user(tab, username, user_id, users):
 
     async def on_response(response):
         nonlocal profile_data
+        global _discovered_doc_id
         try:
             if "graphql" not in response.url:
                 return
             post_data = response.request.post_data or ""
-            if IG_PROFILE_DOC_ID not in post_data:
-                return
-            data = await response.json()
-            parsed = parse_ig_user_profile(data)
-            if parsed:
-                profile_data = parsed
-                data_received.set()
+
+            if _discovered_doc_id:
+                if _discovered_doc_id not in post_data:
+                    return
+                data = await response.json()
+                parsed = parse_ig_user_profile(data)
+                if parsed:
+                    profile_data = parsed
+                    data_received.set()
+            else:
+                data = await response.json()
+                parsed = parse_ig_user_profile(data)
+                if _is_valid_profile(parsed):
+                    profile_data = parsed
+                    m = re.search(r'doc_id"?\s*[=:]\s*"?(\d+)', post_data)
+                    if m:
+                        _discovered_doc_id = m.group(1)
+                        print(f"  [OK] doc_id ditemukan: {_discovered_doc_id}")
+                    data_received.set()
         except:
             pass
 
@@ -304,13 +335,14 @@ async def _enrich_users_parallel(auth, users, user_list, n_tabs=2, headless=True
         tabs = []
 
         async def block_media(route):
-            await route.abort()
+            if route.request.resource_type in ("image", "media"):
+                await route.abort()
+            else:
+                await route.continue_()
 
         for _ in range(n_tabs):
             tab = await context.new_page()
-            await tab.route("**/*.{png,jpg,jpeg,gif,webp,svg,mp4,webm,m3u8,ts}", block_media)
-            await tab.route("**/instagram.*.fna.fbcdn.net/**", block_media)
-            await tab.route("**/scontent.*.fna.fbcdn.net/**", block_media)
+            await tab.route("**/*", block_media)
             tabs.append(tab)
 
         total_users = len(user_list)

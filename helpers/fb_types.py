@@ -126,6 +126,13 @@ def parse_fb_post(story: dict) -> dict:
 
     permalink = safe(story.get("permalink_url", ""))
 
+    group_id = "-"
+    group_name = "-"
+    to = story.get("to")
+    if isinstance(to, dict) and to.get("__typename") == "Group":
+        group_id = safe(str(to.get("id", "")))
+        group_name = safe(to.get("name", ""))
+
     return {
         "post_id_str": post_id,
         "created_at": created_at,
@@ -149,6 +156,8 @@ def parse_fb_post(story: dict) -> dict:
         "media_url": media_url,
         "image_caption": image_caption,
         "post_url": permalink,
+        "group_id": group_id,
+        "group_name": group_name,
     }
 
 
@@ -183,16 +192,25 @@ def parse_fb_user(story: dict) -> dict:
 
 
 def _parse_display_number(text: str) -> int:
-    text = text.strip().replace(',', '')
-    multipliers = {'K': 1_000, 'M': 1_000_000, 'B': 1_000_000_000}
-    for suffix, mult in multipliers.items():
-        if text.upper().endswith(suffix):
-            try:
-                return int(float(text[:-1]) * mult)
-            except ValueError:
-                return 0
+    text = text.replace('\\u00a0', ' ').replace(' ', ' ').strip()
+    suffixes = {
+        'RIBU': 1_000, 'RB': 1_000, 'K': 1_000,
+        'JUTA': 1_000_000, 'JT': 1_000_000, 'M': 1_000_000,
+        'B': 1_000_000_000,
+    }
+    mult = 1
+    upper = text.upper()
+    for suffix, m in sorted(suffixes.items(), key=lambda x: -len(x[0])):
+        if upper.endswith(suffix):
+            mult = m
+            text = text[:-len(suffix)].strip()
+            break
+    if re.search(r',\d{3}(?:\D|$)', text):
+        text = text.replace(',', '')
+    else:
+        text = text.replace(',', '.')
     try:
-        return int(float(text))
+        return int(float(text) * mult)
     except ValueError:
         return 0
 
@@ -206,27 +224,24 @@ def parse_fb_user_profile(html: str) -> dict | None:
         except Exception:
             return s
 
-    # Followers — "10K followers" / "pengikut"
-    m = re.search(r'"text":"([\d,.]+[KMB]?)\s+followers?"', html, re.IGNORECASE)
-    if not m:
-        m = re.search(r'"text":"([\d,.]+[KMB]?)\s+pengikut"', html, re.IGNORECASE)
+    _NUM = r'([\d,.]+(?:\s|\\u00a0)*(?:K|M|B|rb|ribu|jt|juta)?)'
+    _SEP = r'(?:\s|\\u00a0)+'
+
+    # Followers — "10K followers" / "2,8 jt pengikut"
+    m = re.search(r'"text":"' + _NUM + _SEP + r'(?:followers?|pengikut)"', html, re.IGNORECASE)
     result["follower_count"] = _parse_display_number(m.group(1)) if m else 0
 
-    # Following — "2.5K following" / "mengikuti"
-    m = re.search(r'"text":"([\d,.]+[KMB]?)\s+following"', html, re.IGNORECASE)
-    if not m:
-        m = re.search(r'"text":"([\d,.]+[KMB]?)\s+mengikuti"', html, re.IGNORECASE)
+    # Following — "2.5K following" / "34 mengikuti"
+    m = re.search(r'"text":"' + _NUM + _SEP + r'(?:following|mengikuti)"', html, re.IGNORECASE)
     result["following_count"] = _parse_display_number(m.group(1)) if m else 0
 
-    # Friends — "1,234 friends" / "teman"
-    m = re.search(r'"text":"([\d,.]+[KMB]?)\s+friends?"', html, re.IGNORECASE)
-    if not m:
-        m = re.search(r'"text":"([\d,.]+[KMB]?)\s+teman"', html, re.IGNORECASE)
+    # Friends — "1,234 friends" / "1.234 teman"
+    m = re.search(r'"text":"' + _NUM + _SEP + r'(?:friends?|teman)"', html, re.IGNORECASE)
     result["friend_count"] = _parse_display_number(m.group(1)) if m else 0
 
     # Facebook Pages — "X people like this" / "X likes" / "X orang menyukai"
     if result["follower_count"] == 0:
-        m = re.search(r'"text":"([\d,.]+[KMB]?)\s+(?:people like this|likes?|orang menyukai)"', html, re.IGNORECASE)
+        m = re.search(r'"text":"' + _NUM + _SEP + r'(?:people like this|likes?|orang menyukai)"', html, re.IGNORECASE)
         if m:
             result["follower_count"] = _parse_display_number(m.group(1))
 

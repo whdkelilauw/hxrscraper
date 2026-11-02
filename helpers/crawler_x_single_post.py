@@ -208,14 +208,13 @@ def crawl_single_post(url: str, auth: str, headless: bool = True) -> List[Dict]:
                 page.wait_for_timeout(scroll_pause * 1000)
                 tweets_added = len(tweets) - tweets_before
 
-                # Cek tombol Retry (rate limit atau koneksi lambat)
+                # Cek tombol Retry / Coba lagi (rate limit atau koneksi lambat)
                 try:
                     retry_attempts = 0
+                    retry_locator = page.locator("text=/^(Retry|Coba lagi)$/i").first
 
                     while True:
-                        retry_button = page.locator("text=Retry").first
-
-                        if not retry_button.is_visible() or stop_crawling:
+                        if not retry_locator.is_visible() or stop_crawling:
                             break
 
                         retry_attempts += 1
@@ -226,13 +225,13 @@ def crawl_single_post(url: str, auth: str, headless: bool = True) -> List[Dict]:
                             break
 
                         try:
-                            retry_button.click()
+                            retry_locator.click()
                         except:
                             pass
 
                         page.wait_for_timeout(5000)
 
-                        if page.locator("text=Retry").first.is_visible():
+                        if retry_locator.is_visible():
                             print(f"\n[WARNING] Scroll limit terdeteksi {retry_attempts} kali.")
                             print("[COOLDOWN] Istirahat sejenak, cooldown 1 menit")
                             time.sleep(55)

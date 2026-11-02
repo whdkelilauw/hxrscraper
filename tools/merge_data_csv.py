@@ -59,6 +59,18 @@ def prompt_choice(label, options, allow_back=False):
             print(f"  Masukkan angka 0-{len(options)}{' atau <' if allow_back else ''}")
 
 
+def _row_completeness(row):
+    score = 0
+    for val in row:
+        if pd.isna(val):
+            continue
+        s = str(val).strip()
+        if s == "" or s == "-":
+            continue
+        score += 1
+    return score
+
+
 def merge_csv(input_folder):
     all_files = glob.glob(os.path.join(input_folder, "*.csv"))
     all_files = [f for f in all_files if not os.path.basename(f).startswith("merged")]
@@ -93,10 +105,13 @@ def merge_csv(input_folder):
             (merged_df[id_col].astype(str).str.strip() != "") &
             (merged_df[id_col].astype(str).str.strip() != "-")
         ]
+        merged_df["_completeness"] = merged_df.apply(_row_completeness, axis=1)
+        merged_df = merged_df.sort_values("_completeness", ascending=True, kind="mergesort")
         merged_df = merged_df.drop_duplicates(subset=id_col, keep="last")
+        merged_df = merged_df.drop(columns=["_completeness"])
         removed = before - len(merged_df)
         if removed > 0:
-            print(f"[OK] {removed} baris duplikat/kosong dihapus (kolom: {id_col})")
+            print(f"[OK] {removed} baris duplikat/kosong dihapus (kolom: {id_col}, prioritas: data terlengkap)")
 
     if "created_at" in merged_df.columns:
         try:

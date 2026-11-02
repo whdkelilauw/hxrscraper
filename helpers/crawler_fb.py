@@ -15,11 +15,11 @@ import base64
 stop_crawling = False
 
 
-def _build_fb_filters(year: str = '') -> str:
+def _build_fb_filters(year: str = '', sort: str = 'recent') -> str:
     _d = lambda obj: json.dumps(obj, separators=(',', ':'))
-    filters = {
-        'recent_posts:0': _d({"name": "recent_posts", "args": ""})
-    }
+    filters = {}
+    if sort == 'recent':
+        filters['recent_posts:0'] = _d({"name": "recent_posts", "args": ""})
     if year:
         filters['rp_creation_time:0'] = _d({
             "name": "creation_time",
@@ -32,6 +32,8 @@ def _build_fb_filters(year: str = '') -> str:
                 "end_day": f"{year}-12-31",
             })
         })
+    if not filters:
+        return ''
     return base64.b64encode(_d(filters).encode()).decode()
 
 
@@ -47,15 +49,17 @@ def listen_for_enter():
         time.sleep(0.2)
 
 
-def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless: bool = True, enrichment: bool = True) -> tuple:
+def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless: bool = True, enrichment: bool = True, sort: str = 'recent') -> tuple:
     global stop_crawling
     stop_crawling = False
 
     threading.Thread(target=listen_for_enter, daemon=True).start()
 
     encoded_kw = urllib.parse.quote(keyword)
-    fb_filters = _build_fb_filters(year)
-    search_url = f"https://www.facebook.com/search/top?q={encoded_kw}&filters={fb_filters}"
+    fb_filters = _build_fb_filters(year, sort)
+    search_url = f"https://www.facebook.com/search/top?q={encoded_kw}"
+    if fb_filters:
+        search_url += f"&filters={fb_filters}"
 
     posts: List[Dict] = []
     users: dict = {}
@@ -67,6 +71,7 @@ def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless:
     max_timeout = 3
     new_posts_since_last_scroll = 0
     new_posts_since_last_cooldown = 0
+    last_seen_created_at = None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -84,12 +89,10 @@ def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless:
         context.add_cookies(cookies)
         page = context.new_page()
 
-        page.route("**/*.{png,jpg,jpeg,gif,webp,svg,mp4,webm,m3u8,ts}", lambda route: route.abort())
-        page.route("**/scontent.*.fna.fbcdn.net/**", lambda route: route.abort())
-        page.route("**/video.*.fna.fbcdn.net/**", lambda route: route.abort())
+        page.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media") else route.continue_())
 
         def _process_serp(serp):
-            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown
+            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown, last_seen_created_at
             results = serp.get("results", {})
             edges = results.get("edges", [])
             for edge in edges:
@@ -108,6 +111,9 @@ def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless:
                 parsed_user = parse_fb_user(story)
                 post_index[post_id] = len(posts)
                 posts.append(parsed_post)
+                created_at = parsed_post.get("created_at")
+                if created_at and created_at != "-":
+                    last_seen_created_at = created_at
                 user_id = parsed_user.get("user_id_str", "")
                 if user_id != "-" and user_id not in users:
                     users[user_id] = parsed_user
@@ -206,6 +212,8 @@ def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless:
                 posts_added = len(posts) - posts_before
 
                 if stop_crawling:
+                    if last_seen_created_at:
+                        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
                     break
 
                 if posts_added > 0:
@@ -223,6 +231,8 @@ def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless:
 
                         if timeout_count >= max_timeout:
                             print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
+                            if last_seen_created_at:
+                                print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
                             break
 
                 if new_posts_since_last_cooldown >= 200:
@@ -243,6 +253,9 @@ def crawl_fb(keyword: str, auth: str, year: str = '', limit: int = 50, headless:
         n_tabs = min(2, total_users)
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
+
+    if last_seen_created_at:
+        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
 
     total_parsed = len(posts)
     if total_parsed == limit:
@@ -422,17 +435,14 @@ async def _enrich_users_parallel(auth, users, user_list, n_tabs=2, headless=True
         tabs = []
 
         async def block_media(route):
-            url = route.request.url
-            if "facebook.com/" in url and ("/profile" in url or "/people/" in url):
+            if route.request.resource_type in ("image", "media"):
+                await route.abort()
+            else:
                 await route.continue_()
-                return
-            await route.abort()
 
         for _ in range(n_tabs):
             tab = await context.new_page()
-            await tab.route("**/*.{png,jpg,jpeg,gif,webp,svg,mp4,webm,m3u8,ts}", block_media)
-            await tab.route("**/scontent.*.fna.fbcdn.net/**", block_media)
-            await tab.route("**/video.*.fna.fbcdn.net/**", block_media)
+            await tab.route("**/*", block_media)
             tabs.append(tab)
 
         total_users = len(user_list)

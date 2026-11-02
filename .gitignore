@@ -9,6 +9,7 @@ __pycache__
 helpers/__pycache__
 analyze/sentiment/benchmark_sentiment.ipynb
 analyze/sentiment/fix_stemming.ipynb
+analyze/sentiment/kamus_normalize.csv
 analyze/sentiment/news_preprocessing.ipynb
 analyze/sentiment/preprocessing_gemini.ipynb
 analyze/sna/
