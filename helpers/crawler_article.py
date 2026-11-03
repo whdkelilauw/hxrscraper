@@ -228,12 +228,30 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
     return articles
 
 
-CHALLENGE_MARKERS = ["just a moment", "checking your browser", "attention required", "access denied", "please wait", "verify you are human", "bot verification"]
+CHALLENGE_MARKERS = [
+    "just a moment", "checking your browser", "attention required",
+    "access denied", "please wait", "verify you are human",
+    "bot verification", "security detection", "safeline waf",
+    "slide to verify", "ddos protection", "ray id",
+]
+
+
+WAF_CONTENT_MARKERS = [
+    "safeline waf", "security detection", "slide to verify",
+    "ddos protection by", "under attack protection",
+    "checking if the site connection is secure",
+    "enable javascript and cookies to continue",
+]
 
 
 def _is_challenge_page(html):
     lower = html[:3000].lower()
     return any(m in lower for m in CHALLENGE_MARKERS)
+
+
+def _is_waf_content(text):
+    lower = text.lower()
+    return len(lower) < 200 and any(m in lower for m in WAF_CONTENT_MARKERS)
 
 
 async def _wait_for_challenge(tab, max_wait=15):
@@ -276,6 +294,12 @@ async def _extract_single_article(tab, article_data, articles, counter, total):
         if extracted["title"].lower().strip() in blocked_titles:
             counter["done"] += 1
             print(f"  [{counter['done']}/{total}] {url[:50]} -> BLOCKED ({extracted['title']})")
+            return
+
+        ft = extracted.get("full_text", "").lower()
+        if ft and ft != "-" and _is_waf_content(ft):
+            counter["done"] += 1
+            print(f"  [{counter['done']}/{total}] {url[:50]} -> BLOCKED (WAF/security content)")
             return
 
         articles.append(extracted)
