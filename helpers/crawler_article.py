@@ -139,28 +139,34 @@ SERP_EXTRACT_JS = """
         const title = heading ? heading.textContent.trim() : '';
         if (!title || title.length < 5) continue;
         let dateText = '';
-        let card = a;
+        let el = a;
         for (let i = 0; i < 6; i++) {
-            if (card.parentElement) card = card.parentElement;
-            else break;
-        }
-        const tsEl = card.querySelector('[data-ts]');
-        if (tsEl) {
-            dateText = 'ts:' + tsEl.getAttribute('data-ts');
+            if (!el.parentElement) break;
+            el = el.parentElement;
+            const tsEl = el.querySelector('[data-ts]');
+            if (tsEl) {
+                dateText = 'ts:' + tsEl.getAttribute('data-ts');
+                break;
+            }
         }
         if (!dateText) {
+            let card = a;
+            for (let i = 0; i < 6; i++) {
+                if (card.parentElement) card = card.parentElement;
+                else break;
+            }
             const timeEl = card.querySelector('time');
             if (timeEl) {
                 dateText = timeEl.getAttribute('datetime') || timeEl.textContent.trim();
             }
-        }
-        if (!dateText) {
-            const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
-            while (walker.nextNode()) {
-                const t = walker.currentNode.textContent.trim();
-                if (t.length > 2 && t.length < 80 && dateRe.test(t)) {
-                    dateText = t;
-                    break;
+            if (!dateText) {
+                const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+                while (walker.nextNode()) {
+                    const t = walker.currentNode.textContent.trim();
+                    if (t.length > 2 && t.length < 80 && dateRe.test(t)) {
+                        dateText = t;
+                        break;
+                    }
                 }
             }
         }
