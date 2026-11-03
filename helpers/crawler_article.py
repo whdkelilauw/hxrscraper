@@ -123,15 +123,23 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
             start = page_num * 10
             encoded = urllib.parse.quote(query)
 
+            def _to_google_date(val):
+                d = val.split("_")[0]
+                try:
+                    dt = datetime.strptime(d, "%Y-%m-%d")
+                    return f"{dt.month}/{dt.day}/{dt.year}"
+                except Exception:
+                    return d
+
             tbs_parts = []
             if sort == 'recent':
                 tbs_parts.append("sbd:1")
             if since or until:
                 tbs_parts.append("cdr:1")
                 if since:
-                    tbs_parts.append(f"cd_min:{since.split('_')[0]}")
+                    tbs_parts.append(f"cd_min:{_to_google_date(since)}")
                 if until:
-                    tbs_parts.append(f"cd_max:{until.split('_')[0]}")
+                    tbs_parts.append(f"cd_max:{_to_google_date(until)}")
 
             tbs_param = f"&tbs={','.join(tbs_parts)}" if tbs_parts else ""
             search_url = f"https://www.google.com/search?q={encoded}&tbm=nws{tbs_param}&start={start}"
