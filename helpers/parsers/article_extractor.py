@@ -15,8 +15,19 @@ except ImportError:
 WIB = timezone(timedelta(hours=7))
 
 
+def _normalize_url(url):
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    for prefix in ("m.", "amp.", "mobile."):
+        if host.startswith(prefix):
+            host = host[len(prefix):]
+            break
+    return parsed._replace(netloc=host).geturl()
+
+
 def generate_article_id(url):
-    return str(int(hashlib.sha256(url.encode()).hexdigest()[:16], 16))
+    normalized = _normalize_url(url)
+    return str(int(hashlib.sha256(normalized.encode()).hexdigest()[:16], 16))
 
 
 def _find_meta(html, attr_type, attr_name):

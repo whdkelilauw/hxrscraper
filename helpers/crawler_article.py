@@ -8,7 +8,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright as async_pw
 from typing import List, Dict
-from helpers.parsers.article_extractor import extract_article
+from helpers.parsers.article_extractor import extract_article, _normalize_url
 
 import msvcrt
 import threading
@@ -170,8 +170,9 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
             added = 0
             for r in new_results:
                 url = r["url"]
-                if url not in seen_urls:
-                    seen_urls.add(url)
+                normalized = _normalize_url(url)
+                if normalized not in seen_urls:
+                    seen_urls.add(normalized)
                     serp_results.append({
                         "url": url,
                         "serp_title": r["title"],
