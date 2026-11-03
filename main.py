@@ -98,7 +98,7 @@ if __name__ == "__main__":
     # ======================================================
     # CONFIG Article (Google News)
     # ======================================================
-    # Membutuhkan Chrome profile — jalankan `python tools/setup_chrome_profile.py` terlebih dahulu.
+    # Membutuhkan Chrome profile — jalankan `npm run setup_browser` terlebih dahulu.
     # Jumlah halaman SERP yang tersedia bergantung pada akun Google yang digunakan.
     # Jika hasil terbatas, coba setup ulang dengan akun Google berbeda.
     # Kata kunci — bisa kombinasikan dengan operator ("exact phrase", site:, intitle:, -exclude, | (OR))

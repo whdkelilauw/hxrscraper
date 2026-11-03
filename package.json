@@ -1,16 +1,18 @@
 {
   "name": "hxrscraper",
   "description": "A multi-platform social media crawling tool for academic and non-commercial purposes",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "license": "HXRscraper License | Custom MIT Variant",
   "author": "whdkelilauw",
   "created": "2025-09-12",
-  "updated": "2026-08-24",
+  "updated": "2026-11-03",
   "main": "main.py",
   "scripts": {
     "start": "python main.py",
+    "setup_browser": "python tools/setup_chrome_profile.py",
     "merge": "python tools/merge_data_csv.py",
     "cut": "python tools/data_cutter.py",
+    "clean": "python tools/data_cleaner.py",
     "enrich": "python tools/re_enrich.py"
   },
   "dependencies": {}

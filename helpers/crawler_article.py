@@ -1,6 +1,7 @@
 # helpers/crawler_article.py
 import time
 import asyncio
+from datetime import datetime
 import random
 import urllib.parse
 from pathlib import Path
@@ -16,6 +17,14 @@ CHROME_PROFILE = Path(__file__).resolve().parent.parent / "__chrome_profile"
 EXTENSION_DIR = Path(__file__).resolve().parent.parent / "__extensions" / "adguard"
 
 stop_crawling = False
+
+
+def _fmt_until(date_str):
+    try:
+        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
+        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+    except Exception:
+        return date_str
 
 
 def listen_for_enter():
@@ -80,7 +89,7 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
 
     if not CHROME_PROFILE.exists() or not any(CHROME_PROFILE.iterdir()):
         print(f"\n[ERROR] Chrome profile belum di-setup: {CHROME_PROFILE}")
-        print("[INFO] Jalankan: python tools/setup_chrome_profile.py")
+        print("[INFO] Jalankan: npm run setup_browser")
         return []
 
     query = keyword
@@ -196,7 +205,7 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
     if articles:
         last = next((a["published_at"] for a in articles if a.get("published_at") and a["published_at"] != "-"), None)
         if last:
-            print(f"[INFO] Artikel terakhir terdeteksi pada: {last}")
+            print(f"[INFO] Artikel terakhir terdeteksi pada: {last} -> UNTIL: {_fmt_until(last)}")
 
     return articles
 

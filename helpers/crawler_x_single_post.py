@@ -1,6 +1,7 @@
 # helpers/crawler_x_single_post.py
 import json
 import time
+from datetime import datetime
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from typing import List, Dict
 from helpers.x_types import parse_tweet, parse_user, normalize_tweet_result
@@ -8,6 +9,15 @@ import msvcrt
 import threading
 
 stop_crawling = False
+
+
+def _fmt_until(date_str):
+    try:
+        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
+        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+    except Exception:
+        return date_str
+
 
 def listen_for_enter():
     """
@@ -245,7 +255,7 @@ def crawl_single_post(url: str, auth: str, headless: bool = True) -> List[Dict]:
                     print(f"[WARNING] Retry handler error: {e}")
 
                 if stop_crawling and last_seen_created_at:
-                    print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at}")
+                    print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                     break
 
                 # Jika ada tweet baru
@@ -266,7 +276,7 @@ def crawl_single_post(url: str, auth: str, headless: bool = True) -> List[Dict]:
                         if timeout_count >= max_timeout:
                             print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
                             if last_seen_created_at:
-                                print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at}")
+                                print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                             break
 
                 # Cooldown tiap 400 tweet baru untuk menghindari rate limit

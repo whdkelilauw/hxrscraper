@@ -12,6 +12,14 @@ import urllib.parse
 WIB = timezone(timedelta(hours=7))
 
 
+def _fmt_until(date_str):
+    try:
+        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
+        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+    except Exception:
+        return date_str
+
+
 def _to_until_param(created_at_str):
     dt = datetime.strptime(created_at_str, "%a %b %d %H:%M:%S %z %Y")
     wib_dt = dt.astimezone(WIB)
@@ -267,7 +275,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
                         print(f"[WARNING] Retry handler error: {e}")
 
                     if stop_crawling and last_seen_created_at:
-                        print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at}")
+                        print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                         break
 
                     if tweets_added > 0:
@@ -286,7 +294,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
                             if timeout_count >= max_timeout:
                                 print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
                                 if last_seen_created_at:
-                                    print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at}")
+                                    print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                                 timed_out = True
                                 break
 
@@ -326,7 +334,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
         current_until = _to_until_param(last_seen_created_at)
 
     if overall_last_seen:
-        print(f"\n[INFO] Tweet terakhir terdeteksi pada: {overall_last_seen}")
+        print(f"\n[INFO] Tweet terakhir terdeteksi pada: {overall_last_seen} -> UNTIL: {_fmt_until(overall_last_seen)}")
 
     total_parsed = len(tweets)
     if total_parsed == limit:

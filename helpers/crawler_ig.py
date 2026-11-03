@@ -2,6 +2,7 @@
 import json
 import time
 import asyncio
+from datetime import datetime
 from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright as async_pw
 from typing import List, Dict
@@ -13,6 +14,15 @@ import urllib.parse
 import re
 
 stop_crawling = False
+
+
+def _fmt_until(date_str):
+    try:
+        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
+        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+    except Exception:
+        return date_str
+
 
 _discovered_doc_id = None
 
@@ -151,7 +161,7 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
 
                 if stop_crawling:
                     if last_seen_created_at:
-                        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
+                        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                     break
 
                 if posts_added > 0:
@@ -170,7 +180,7 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
                         if timeout_count >= max_timeout:
                             print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
                             if last_seen_created_at:
-                                print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
+                                print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                             break
 
                 if new_posts_since_last_cooldown >= 200:
@@ -193,7 +203,7 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
 
     if last_seen_created_at:
-        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at}")
+        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
 
     total_parsed = len(posts)
     if total_parsed == limit:

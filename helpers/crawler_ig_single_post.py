@@ -3,6 +3,7 @@ import json
 import re
 import time
 import asyncio
+from datetime import datetime
 from playwright.sync_api import sync_playwright
 from typing import List, Dict
 from helpers.ig_types import parse_ig_comment, parse_ig_comment_user, extract_ssr_comments
@@ -12,6 +13,15 @@ import msvcrt
 import threading
 
 stop_crawling = False
+
+
+def _fmt_until(date_str):
+    try:
+        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
+        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+    except Exception:
+        return date_str
+
 
 COMMENTS_DOC_ID = "28082902984733691"
 REPLIES_DOC_ID = "27823744063932558"
@@ -153,7 +163,7 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
 
                 if stop_crawling:
                     if last_seen_created_at:
-                        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at}")
+                        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                     break
 
                 if comments_added > 0:
@@ -172,7 +182,7 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
                         print(f"[WARNING] Timeout ({timeout_count}/{max_timeout})")
                         if timeout_count >= max_timeout:
                             if last_seen_created_at:
-                                print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at}")
+                                print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                             break
 
         except Exception:
@@ -299,6 +309,6 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
 
     if last_seen_created_at:
-        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at}")
+        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
 
     return comments, list(users.values())
