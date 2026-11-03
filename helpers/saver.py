@@ -634,10 +634,10 @@ def save_articles_to_csv(articles: List[Dict], project_name: str, filename: str)
             "source",
             "author",
             "published_at",
+            "tags",
             "description",
             "full_text",
             "image_url",
-            "serp_position",
         ])
 
         for a in articles_sorted:
@@ -648,10 +648,10 @@ def save_articles_to_csv(articles: List[Dict], project_name: str, filename: str)
                 a.get("source", "-"),
                 a.get("author", "-"),
                 a.get("published_at", "-"),
+                a.get("tags", "-"),
                 a.get("description", "-").replace("\r", "\n"),
                 a.get("full_text", "-").replace("\r", "\n"),
                 a.get("image_url", "-"),
-                a.get("serp_position", 0),
             ])
 
     print(f"[OK] {len(articles_sorted)} Artikel tersimpan di: {filepath}")

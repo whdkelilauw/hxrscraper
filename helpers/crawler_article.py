@@ -288,7 +288,6 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
                         "url": url,
                         "serp_title": r["title"],
                         "serp_date": r.get("serp_date", ""),
-                        "serp_position": len(serp_results) + 1,
                     })
                     added += 1
 
@@ -397,7 +396,6 @@ async def _extract_single_article(tab, article_data, articles, counter, total):
             return
 
         extracted = extract_article(html, url)
-        extracted["serp_position"] = article_data.get("serp_position", 0)
 
         if extracted["title"] == "-" and article_data.get("serp_title"):
             extracted["title"] = article_data["serp_title"]
@@ -414,10 +412,10 @@ async def _extract_single_article(tab, article_data, articles, counter, total):
             print(f"  [{counter['done']}/{total}] {url[:50]} -> BLOCKED (WAF/security content)")
             return
 
-        if extracted["published_at"] == "-" and article_data.get("serp_date"):
-            fallback = _parse_serp_date(article_data["serp_date"])
-            if fallback:
-                extracted["published_at"] = fallback
+        if article_data.get("serp_date"):
+            serp_parsed = _parse_serp_date(article_data["serp_date"])
+            if serp_parsed:
+                extracted["published_at"] = serp_parsed
 
         articles.append(extracted)
         counter["done"] += 1

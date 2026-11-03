@@ -12,7 +12,6 @@ analyze/sentiment/benchmark_sentiment.ipynb
 analyze/sentiment/fix_stemming.ipynb
 analyze/sentiment/kamus_normalize.csv
 analyze/sentiment/news_preprocessing.ipynb
-analyze/sentiment/preprocessing_gemini.ipynb
 analyze/sna/
 analyze/kamus_normalize.csv
 auth/

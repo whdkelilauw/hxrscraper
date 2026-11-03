@@ -111,6 +111,13 @@ def _extract_json_ld(html):
                     if isinstance(publisher, dict):
                         result["source"] = publisher.get("name", "")
 
+                if not result.get("tags"):
+                    keywords = data.get("keywords")
+                    if isinstance(keywords, list):
+                        result["tags"] = ", ".join(str(k) for k in keywords if k)
+                    elif isinstance(keywords, str):
+                        result["tags"] = keywords
+
             except (json.JSONDecodeError, TypeError):
                 continue
     except Exception:
@@ -154,6 +161,20 @@ def _extract_og_meta(html):
         m = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
         if m:
             result["title"] = m.group(1).strip()
+
+    tags = []
+    for pattern in [
+        r'<meta[^>]+property=["\']article:tag["\'][^>]+content=["\']([^"\']*)["\']',
+        r'<meta[^>]+content=["\']([^"\']*)["\'][^>]+property=["\']article:tag["\']',
+    ]:
+        tags.extend(re.findall(pattern, html, re.IGNORECASE))
+    if tags:
+        result["tags"] = ", ".join(t.strip() for t in tags if t.strip())
+
+    if "tags" not in result:
+        val = _find_meta(html, "name", "keywords")
+        if val:
+            result["tags"] = val
 
     return result
 
@@ -259,4 +280,5 @@ def extract_article(html, url):
         "description": pick("description") or "-",
         "full_text": full_text or "-",
         "image_url": pick("image_url") or "-",
+        "tags": pick("tags") or "-",
     }
