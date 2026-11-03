@@ -1,14 +1,15 @@
 # helpers/crawler_article.py
+import re
 import time
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import random
 import urllib.parse
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright as async_pw
 from typing import List, Dict
-from helpers.parsers.article_extractor import extract_article, _normalize_url
+from helpers.parsers.article_extractor import extract_article, _normalize_url, _normalize_date, WIB
 
 import msvcrt
 import threading
@@ -25,6 +26,75 @@ def _fmt_until(date_str):
         return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
     except Exception:
         return date_str
+
+
+_SERP_RELATIVE_RE = re.compile(
+    r'(\d+)\s*(menit|jam|hari|minggu|bulan|detik|minute|hour|day|week|month|second)s?',
+    re.IGNORECASE
+)
+
+_SERP_MONTHS = {
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'mei': 5, 'may': 5,
+    'jun': 6, 'jul': 7, 'agu': 8, 'aug': 8, 'sep': 9, 'okt': 10,
+    'oct': 10, 'nov': 11, 'des': 12, 'dec': 12,
+}
+
+
+def _parse_serp_date(text):
+    if not text:
+        return ""
+    text = text.strip()
+
+    result = _normalize_date(text)
+    if result != "-":
+        return result
+
+    now = datetime.now(WIB)
+
+    m = _SERP_RELATIVE_RE.search(text)
+    if m:
+        val = int(m.group(1))
+        unit = m.group(2).lower()
+        unit_map = {
+            'detik': 'seconds', 'second': 'seconds',
+            'menit': 'minutes', 'minute': 'minutes',
+            'jam': 'hours', 'hour': 'hours',
+            'hari': 'days', 'day': 'days',
+            'minggu': 'weeks', 'week': 'weeks',
+            'bulan': 'days', 'month': 'days',
+        }
+        key = unit_map.get(unit, 'hours')
+        amount = val * 30 if unit in ('bulan', 'month') else val
+        dt = now - timedelta(**{key: amount})
+        return dt.strftime("%a %b %d %H:%M:%S %z %Y")
+
+    if text.lower() in ('kemarin', 'yesterday'):
+        dt = now - timedelta(days=1)
+        return dt.strftime("%a %b %d %H:%M:%S %z %Y")
+
+    m = re.search(r'(\d{1,2})\s+([a-z]{3})\w*[\s,]+(\d{4})', text, re.IGNORECASE)
+    if m:
+        day, mon, year = int(m.group(1)), m.group(2).lower()[:3], int(m.group(3))
+        month = _SERP_MONTHS.get(mon)
+        if month:
+            try:
+                dt = datetime(year, month, day, tzinfo=WIB)
+                return dt.strftime("%a %b %d %H:%M:%S %z %Y")
+            except ValueError:
+                pass
+
+    m = re.search(r'([a-z]{3})\w*\s+(\d{1,2})[\s,]+(\d{4})', text, re.IGNORECASE)
+    if m:
+        mon, day, year = m.group(1).lower()[:3], int(m.group(2)), int(m.group(3))
+        month = _SERP_MONTHS.get(mon)
+        if month:
+            try:
+                dt = datetime(year, month, day, tzinfo=WIB)
+                return dt.strftime("%a %b %d %H:%M:%S %z %Y")
+            except ValueError:
+                pass
+
+    return ""
 
 
 def listen_for_enter():
@@ -45,6 +115,7 @@ SERP_EXTRACT_JS = """
     const container = document.querySelector('#search') || document.querySelector('#rso') || document.body;
     const links = container.querySelectorAll('a[href]');
     const seen = new Set();
+    const dateRe = /(\\d+\\s*(menit|jam|hari|minggu|bulan|detik|minute|hour|day|week|month|second)s?\\s*(lalu|yang lalu|ago))|kemarin|yesterday|(\\d{1,2}\\s+(jan|feb|mar|apr|mei|jun|jul|agu|sep|okt|nov|des|may|aug|oct|dec)\\w*[\\s,]+\\d{4})|((jan|feb|mar|apr|mei|jun|jul|agu|sep|okt|nov|des|may|aug|oct|dec)\\w*\\s+\\d{1,2}[\\s,]+\\d{4})/i;
     for (const a of links) {
         let href = a.href;
         if (!href || !href.startsWith('http')) continue;
@@ -59,7 +130,27 @@ SERP_EXTRACT_JS = """
         const heading = a.querySelector('[role="heading"]');
         const title = heading ? heading.textContent.trim() : '';
         if (!title || title.length < 5) continue;
-        results.push({ url: href, title: title });
+        let dateText = '';
+        let card = a;
+        for (let i = 0; i < 6; i++) {
+            if (card.parentElement) card = card.parentElement;
+            else break;
+        }
+        const timeEl = card.querySelector('time');
+        if (timeEl) {
+            dateText = timeEl.getAttribute('datetime') || timeEl.textContent.trim();
+        }
+        if (!dateText) {
+            const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) {
+                const t = walker.currentNode.textContent.trim();
+                if (t.length > 2 && t.length < 80 && dateRe.test(t)) {
+                    dateText = t;
+                    break;
+                }
+            }
+        }
+        results.push({ url: href, title: title, serp_date: dateText });
     }
     return results;
 })()
@@ -176,6 +267,7 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
                     serp_results.append({
                         "url": url,
                         "serp_title": r["title"],
+                        "serp_date": r.get("serp_date", ""),
                         "serp_position": len(serp_results) + 1,
                     })
                     added += 1
@@ -301,6 +393,11 @@ async def _extract_single_article(tab, article_data, articles, counter, total):
             counter["done"] += 1
             print(f"  [{counter['done']}/{total}] {url[:50]} -> BLOCKED (WAF/security content)")
             return
+
+        if extracted["published_at"] == "-" and article_data.get("serp_date"):
+            fallback = _parse_serp_date(article_data["serp_date"])
+            if fallback:
+                extracted["published_at"] = fallback
 
         articles.append(extracted)
         counter["done"] += 1
