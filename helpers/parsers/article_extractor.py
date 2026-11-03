@@ -114,9 +114,9 @@ def _extract_json_ld(html):
                 if not result.get("tags"):
                     keywords = data.get("keywords")
                     if isinstance(keywords, list):
-                        result["tags"] = "; ".join(str(k) for k in keywords if k)
+                        result["tags"] = ";".join(f"#{str(k).strip()}" for k in keywords if str(k).strip())
                     elif isinstance(keywords, str):
-                        result["tags"] = "; ".join(t.strip() for t in keywords.split(",") if t.strip())
+                        result["tags"] = ";".join(f"#{t.strip()}" for t in keywords.split(",") if t.strip())
 
             except (json.JSONDecodeError, TypeError):
                 continue
@@ -169,12 +169,12 @@ def _extract_og_meta(html):
     ]:
         tags.extend(re.findall(pattern, html, re.IGNORECASE))
     if tags:
-        result["tags"] = "; ".join(t.strip() for t in tags if t.strip())
+        result["tags"] = ";".join(f"#{t.strip()}" for t in tags if t.strip())
 
     if "tags" not in result:
         val = _find_meta(html, "name", "keywords")
         if val:
-            result["tags"] = "; ".join(t.strip() for t in val.split(",") if t.strip())
+            result["tags"] = ";".join(f"#{t.strip()}" for t in val.split(",") if t.strip())
 
     return result
 
