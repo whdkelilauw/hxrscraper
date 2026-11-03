@@ -45,6 +45,14 @@ def _parse_serp_date(text):
         return ""
     text = text.strip()
 
+    if text.startswith("ts:"):
+        try:
+            ts = int(text[3:])
+            dt = datetime.fromtimestamp(ts, tz=WIB)
+            return dt.strftime("%a %b %d %H:%M:%S %z %Y")
+        except (ValueError, OSError):
+            pass
+
     result = _normalize_date(text)
     if result != "-":
         return result
@@ -136,9 +144,15 @@ SERP_EXTRACT_JS = """
             if (card.parentElement) card = card.parentElement;
             else break;
         }
-        const timeEl = card.querySelector('time');
-        if (timeEl) {
-            dateText = timeEl.getAttribute('datetime') || timeEl.textContent.trim();
+        const tsEl = card.querySelector('[data-ts]');
+        if (tsEl) {
+            dateText = 'ts:' + tsEl.getAttribute('data-ts');
+        }
+        if (!dateText) {
+            const timeEl = card.querySelector('time');
+            if (timeEl) {
+                dateText = timeEl.getAttribute('datetime') || timeEl.textContent.trim();
+            }
         }
         if (!dateText) {
             const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
