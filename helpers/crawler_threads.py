@@ -59,9 +59,9 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
     if sort == 'recent':
         params['filter'] = 'recent'
     if after_date:
-        params['after_date'] = after_date
+        params['after_date'] = after_date.split("_")[0]
     if before_date:
-        params['before_date'] = before_date
+        params['before_date'] = before_date.split("_")[0]
     search_url = f"https://www.threads.com/search?{urllib.parse.urlencode(params)}"
 
     posts: List[Dict] = []
