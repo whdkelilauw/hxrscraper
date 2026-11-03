@@ -203,14 +203,23 @@ def crawl_articles(keyword: str, since: str = '', until: str = '', limit: int = 
     print(f"\n[OK] Extraction selesai: {len(articles)} artikel berhasil diekstrak")
 
     if articles:
-        last = next((a["published_at"] for a in articles if a.get("published_at") and a["published_at"] != "-"), None)
-        if last:
+        valid_dates = []
+        for a in articles:
+            d = a.get("published_at", "")
+            if d and d != "-":
+                try:
+                    valid_dates.append(datetime.strptime(d, "%a %b %d %H:%M:%S %z %Y"))
+                except Exception:
+                    pass
+        if valid_dates:
+            oldest = min(valid_dates)
+            last = oldest.strftime("%a %b %d %H:%M:%S %z %Y")
             print(f"[INFO] Artikel terakhir terdeteksi pada: {last} -> UNTIL: {_fmt_until(last)}")
 
     return articles
 
 
-CHALLENGE_MARKERS = ["just a moment", "checking your browser", "attention required", "access denied", "please wait", "verify you are human"]
+CHALLENGE_MARKERS = ["just a moment", "checking your browser", "attention required", "access denied", "please wait", "verify you are human", "bot verification"]
 
 
 def _is_challenge_page(html):
@@ -253,6 +262,12 @@ async def _extract_single_article(tab, article_data, articles, counter, total):
 
         if extracted["title"] == "-" and article_data.get("serp_title"):
             extracted["title"] = article_data["serp_title"]
+
+        blocked_titles = ["bot verification", "access denied", "just a moment", "attention required"]
+        if extracted["title"].lower().strip() in blocked_titles:
+            counter["done"] += 1
+            print(f"  [{counter['done']}/{total}] {url[:50]} -> BLOCKED ({extracted['title']})")
+            return
 
         articles.append(extracted)
         counter["done"] += 1
