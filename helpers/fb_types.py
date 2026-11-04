@@ -45,7 +45,7 @@ def parse_fb_post(story: dict) -> dict:
     if isinstance(text, str):
         text = text.replace("\r", "\n").strip()
 
-    mentions = re.findall(r'@([\w.]+)', text) if isinstance(text, str) and text != "-" else []
+    mentions = re.findall(r'(?<![a-zA-Z0-9._%+-])@([\w.]+)', text) if isinstance(text, str) and text != "-" else []
     mentions_str = ";".join([f"@{m}" for m in mentions]) if mentions else "-"
 
     hashtags = re.findall(r'#(\w+)', text) if isinstance(text, str) and text != "-" else []

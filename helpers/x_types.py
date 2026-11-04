@@ -168,7 +168,7 @@ def parse_tweet(tweet: dict) -> dict:
     entity_mentions = [safe(m.get('screen_name', '')) for m in entities_used.get("user_mentions", [])]
 
     # 2. Regex fallback dari full_text (tangkap username dengan titik)
-    regex_mentions = [m.rstrip('.') for m in re.findall(r'@([\w.]+)', full_text)] if full_text else []
+    regex_mentions = [m.rstrip('.') for m in re.findall(r'(?<![a-zA-Z0-9._%+-])@([\w.]+)', full_text)] if full_text else []
 
     # Merge: prefer regex (lebih panjang) jika entity terpotong
     has_short = any(len(em) <= 2 for em in entity_mentions if em)

@@ -33,7 +33,7 @@ def parse_ig_post(node: dict) -> dict:
     if isinstance(full_text, str):
         full_text = full_text.replace("\r", "\n").strip()
 
-    mentions = re.findall(r'@([\w.]+)', full_text) if isinstance(full_text, str) else []
+    mentions = re.findall(r'(?<![a-zA-Z0-9._%+-])@([\w.]+)', full_text) if isinstance(full_text, str) else []
     mentions_str = ";".join([f"@{m}" for m in mentions]) if mentions else "-"
 
     hashtags = re.findall(r'#(\w+)', full_text) if isinstance(full_text, str) else []
@@ -162,7 +162,7 @@ def parse_ig_comment(node: dict) -> dict:
         gif_url = fixed.get("url", "-")
         full_text = f"[GIF] {gif_url}" if gif_url != "-" else "[GIF]"
 
-    mentions = re.findall(r'@([\w.]+)', full_text) if isinstance(full_text, str) else []
+    mentions = re.findall(r'(?<![a-zA-Z0-9._%+-])@([\w.]+)', full_text) if isinstance(full_text, str) else []
     mentions_str = ";".join([f"@{m}" for m in mentions]) if mentions else "-"
 
     hashtags = re.findall(r'#(\w+)', full_text) if isinstance(full_text, str) else []

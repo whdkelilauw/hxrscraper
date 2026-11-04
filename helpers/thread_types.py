@@ -45,7 +45,7 @@ def parse_thread_post(post: dict, thread_id: str = None) -> dict:
     if isinstance(full_text, str):
         full_text = full_text.replace("\r", "\n").strip()
 
-    mentions = re.findall(r'@([\w.]+)', full_text) if isinstance(full_text, str) else []
+    mentions = re.findall(r'(?<![a-zA-Z0-9._%+-])@([\w.]+)', full_text) if isinstance(full_text, str) else []
     mentions_str = ";".join([f"@{m}" for m in mentions]) if mentions else "-"
 
     hashtags = re.findall(r'#(\w+)', full_text) if isinstance(full_text, str) else []
