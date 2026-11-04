@@ -106,10 +106,6 @@ def _extract_json_ld(html):
                     elif isinstance(image, str):
                         result["image_url"] = image
 
-                if not result.get("source"):
-                    publisher = data.get("publisher")
-                    if isinstance(publisher, dict):
-                        result["source"] = publisher.get("name", "")
 
                 if not result.get("tags"):
                     keywords = data.get("keywords")
@@ -139,10 +135,6 @@ def _extract_og_meta(html):
     val = _find_meta(html, "property", "og:image")
     if val:
         result["image_url"] = val
-
-    val = _find_meta(html, "property", "og:site_name")
-    if val:
-        result["source"] = val
 
     val = _find_meta(html, "property", "article:published_time")
     if val:
@@ -215,16 +207,6 @@ def _normalize_date(date_str):
     return "-"
 
 
-def _is_dirty_source(source):
-    low = source.lower()
-    if any(x in low for x in ["copyright", "©", "all rights reserved", "powered by"]):
-        return True
-    if source.startswith("http://") or source.startswith("https://"):
-        return True
-    if len(source) > 60:
-        return True
-    return False
-
 
 def extract_article(html, url):
     json_ld = _extract_json_ld(html)
@@ -266,15 +248,11 @@ def extract_article(html, url):
 
     domain = urlparse(url).netloc.replace("www.", "")
 
-    source = pick("source") or domain
-    if _is_dirty_source(source):
-        source = domain
-
     return {
         "article_id_str": generate_article_id(url),
         "url": url,
         "title": pick("title") or "-",
-        "source": source,
+        "source": domain,
         "author": pick("author") or "-",
         "published_at": _normalize_date(pick("published_at")),
         "description": pick("description") or "-",
