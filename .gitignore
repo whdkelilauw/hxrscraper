@@ -8,6 +8,7 @@ __pycache__
 .backup/
 .claude/
 helpers/__pycache__
+helpers/tiktok_types.py
 analyze/sentiment/benchmark_sentiment.ipynb
 analyze/sentiment/fix_stemming.ipynb
 analyze/sentiment/kamus_normalize.csv
