@@ -55,13 +55,17 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
 
     threading.Thread(target=listen_for_enter, daemon=True).start()
 
-    params = {'q': keyword, 'serp_type': 'default', 'exact_match': 'false'}
-    if sort == 'recent':
-        params['filter'] = 'recent'
+    # Urutan param mengikuti yang dihasilkan Threads sendiri: alfabetis, lalu filter terakhir.
+    params = {}
     if after_date:
         params['after_date'] = after_date.split("_")[0]
     if before_date:
         params['before_date'] = before_date.split("_")[0]
+    params['exact_match'] = 'false'
+    params['q'] = keyword
+    params['serp_type'] = 'default'
+    if sort == 'recent':
+        params['filter'] = 'recent'
     search_url = f"https://www.threads.com/search?{urllib.parse.urlencode(params, quote_via=urllib.parse.quote)}"
 
     posts: List[Dict] = []
