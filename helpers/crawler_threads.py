@@ -15,12 +15,16 @@ import urllib.parse
 stop_crawling = False
 
 
-def _fmt_until(date_str):
+def _parse_created_at(date_str):
     try:
-        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
-        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+        return datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
     except Exception:
-        return date_str
+        return None
+
+
+def _fmt_until(date_str):
+    dt = _parse_created_at(date_str)
+    return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB") if dt else date_str
 
 
 def listen_for_enter():
@@ -78,7 +82,8 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
     max_timeout = 3
     new_posts_since_last_scroll = 0
     new_posts_since_last_cooldown = 0
-    last_seen_created_at = None
+    oldest_created_at = None
+    oldest_dt = None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -97,7 +102,7 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
         page.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media") else route.continue_())
 
         def handle_response(response):
-            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown, last_seen_created_at
+            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown, oldest_created_at, oldest_dt
             try:
                 if stop_crawling:
                     return
@@ -132,9 +137,14 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
                         post_index[post_id] = len(posts)
                         posts.append(parsed_post)
 
+                        # Reply dalam satu thread bisa lebih baru dari post induknya,
+                        # jadi simpan yang paling tua — bukan yang terakhir diiterasi.
                         created_at = parsed_post.get("created_at")
                         if created_at and created_at != "-":
-                            last_seen_created_at = created_at
+                            dt = _parse_created_at(created_at)
+                            if dt and (oldest_dt is None or dt < oldest_dt):
+                                oldest_dt = dt
+                                oldest_created_at = created_at
 
                         user_id = parsed_user.get("user_id_str", "")
                         if user_id != "-" and user_id not in users:
@@ -170,8 +180,8 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
                 posts_added = len(posts) - posts_before
 
                 if stop_crawling:
-                    if last_seen_created_at:
-                        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                    if oldest_created_at:
+                        print(f"\n[INFO] Post tertua terdeteksi pada: {oldest_created_at} -> UNTIL: {_fmt_until(oldest_created_at)}")
                     break
 
                 if posts_added > 0:
@@ -189,8 +199,8 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
 
                         if timeout_count >= max_timeout:
                             print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
-                            if last_seen_created_at:
-                                print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                            if oldest_created_at:
+                                print(f"\n[INFO] Post tertua terdeteksi pada: {oldest_created_at} -> UNTIL: {_fmt_until(oldest_created_at)}")
                             break
 
                 if new_posts_since_last_cooldown >= 200:
@@ -212,8 +222,8 @@ def crawl_threads(keyword: str, auth: str, after_date: str = '', before_date: st
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
 
-    if last_seen_created_at:
-        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+    if oldest_created_at:
+        print(f"\n[INFO] Post tertua terdeteksi pada: {oldest_created_at} -> UNTIL: {_fmt_until(oldest_created_at)}")
 
     total_parsed = len(posts)
     if total_parsed == limit:
