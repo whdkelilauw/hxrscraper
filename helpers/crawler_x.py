@@ -12,12 +12,16 @@ import urllib.parse
 WIB = timezone(timedelta(hours=7))
 
 
-def _fmt_until(date_str):
+def _parse_created_at(date_str):
     try:
-        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
-        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+        return datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
     except Exception:
-        return date_str
+        return None
+
+
+def _fmt_until(date_str):
+    dt = _parse_created_at(date_str)
+    return dt.astimezone(WIB).strftime("%Y-%m-%d_%H:%M:%S_WIB") if dt else date_str
 
 
 def _to_until_param(created_at_str):
@@ -73,7 +77,8 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
     max_retries = 3
     retry_count = 0
     current_until = until
-    overall_last_seen = None
+    overall_oldest = None
+    overall_oldest_dt = None
 
     while retry_count <= max_retries:
         if stop_crawling:
@@ -275,7 +280,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
                         print(f"[WARNING] Retry handler error: {e}")
 
                     if stop_crawling and last_seen_created_at:
-                        print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                        print(f"\n[INFO] Tweet tertua terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                         break
 
                     if tweets_added > 0:
@@ -294,7 +299,7 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
                             if timeout_count >= max_timeout:
                                 print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
                                 if last_seen_created_at:
-                                    print(f"\n[INFO] Tweet terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                                    print(f"\n[INFO] Tweet tertua terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
                                 timed_out = True
                                 break
 
@@ -308,8 +313,12 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
 
         tweets_this_attempt = len(tweets) - tweets_before_attempt
 
+        # Simpan yang tertua lintas percobaan, bukan nilai percobaan terakhir.
         if last_seen_created_at:
-            overall_last_seen = last_seen_created_at
+            dt = _parse_created_at(last_seen_created_at)
+            if dt and (overall_oldest_dt is None or dt < overall_oldest_dt):
+                overall_oldest_dt = dt
+                overall_oldest = last_seen_created_at
 
         if stop_crawling:
             break
@@ -331,10 +340,12 @@ def crawl_tweets(keyword: str, excluded: str, since: str, until: str, lang: str,
         if retry_count > max_retries:
             break
 
-        current_until = _to_until_param(last_seen_created_at)
+        # Anchor ke yang tertua lintas percobaan supaya retry selalu maju mundur
+        # ke rentang baru, bukan mengulang rentang yang sudah ter-crawl.
+        current_until = _to_until_param(overall_oldest or last_seen_created_at)
 
-    if overall_last_seen:
-        print(f"\n[INFO] Tweet terakhir terdeteksi pada: {overall_last_seen} -> UNTIL: {_fmt_until(overall_last_seen)}")
+    if overall_oldest:
+        print(f"\n[INFO] Tweet tertua terdeteksi pada: {overall_oldest} -> UNTIL: {_fmt_until(overall_oldest)}")
 
     total_parsed = len(tweets)
     if total_parsed == limit:
