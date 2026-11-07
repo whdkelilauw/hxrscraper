@@ -16,12 +16,15 @@ import re
 stop_crawling = False
 
 
-def _fmt_until(date_str):
+def _parse_created_at(date_str):
     try:
-        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
-        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+        return datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
     except Exception:
-        return date_str
+        return None
+
+
+def _fmt_range(dt):
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 _discovered_doc_id = None
@@ -71,7 +74,10 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
     max_timeout = 3
     new_posts_since_last_scroll = 0
     new_posts_since_last_cooldown = 0
-    last_seen_created_at = None
+    # IG search diurutkan relevansi, bukan tanggal, jadi lacak kedua ujung
+    # rentang alih-alih mengandalkan urutan iterasi.
+    oldest_dt = None
+    newest_dt = None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -90,7 +96,7 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
         page.route("**/*", lambda route: route.abort() if route.request.resource_type in ("image", "media") else route.continue_())
 
         def handle_response(response):
-            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown, last_seen_created_at
+            nonlocal posts, users, new_posts_since_last_scroll, new_posts_since_last_cooldown, oldest_dt, newest_dt
             try:
                 if stop_crawling:
                     return
@@ -125,7 +131,12 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
 
                         created_at = parsed_post.get("created_at")
                         if created_at and created_at != "-":
-                            last_seen_created_at = created_at
+                            dt = _parse_created_at(created_at)
+                            if dt:
+                                if oldest_dt is None or dt < oldest_dt:
+                                    oldest_dt = dt
+                                if newest_dt is None or dt > newest_dt:
+                                    newest_dt = dt
 
                         user_id = parsed_user.get("user_id_str", "")
                         if user_id != "-" and user_id not in users:
@@ -160,8 +171,8 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
                 posts_added = len(posts) - posts_before
 
                 if stop_crawling:
-                    if last_seen_created_at:
-                        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                    if oldest_dt and newest_dt:
+                        print(f"\n[INFO] Rentang data: {_fmt_range(oldest_dt)} s/d {_fmt_range(newest_dt)}")
                     break
 
                 if posts_added > 0:
@@ -179,8 +190,8 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
 
                         if timeout_count >= max_timeout:
                             print(f"[WARNING] Timeout berjumlah {timeout_count} kali, crawling dihentikan.")
-                            if last_seen_created_at:
-                                print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                            if oldest_dt and newest_dt:
+                                print(f"\n[INFO] Rentang data: {_fmt_range(oldest_dt)} s/d {_fmt_range(newest_dt)}")
                             break
 
                 if new_posts_since_last_cooldown >= 200:
@@ -202,8 +213,8 @@ def crawl_ig(keyword: str, auth: str, limit: int = 50, headless: bool = True, en
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
 
-    if last_seen_created_at:
-        print(f"\n[INFO] Post terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+    if oldest_dt and newest_dt:
+        print(f"\n[INFO] Rentang data: {_fmt_range(oldest_dt)} s/d {_fmt_range(newest_dt)}")
 
     total_parsed = len(posts)
     if total_parsed == limit:

@@ -15,12 +15,15 @@ import threading
 stop_crawling = False
 
 
-def _fmt_until(date_str):
+def _parse_created_at(date_str):
     try:
-        dt = datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
-        return dt.strftime("%Y-%m-%d_%H:%M:%S_WIB")
+        return datetime.strptime(date_str, "%a %b %d %H:%M:%S %z %Y")
     except Exception:
-        return date_str
+        return None
+
+
+def _fmt_range(dt):
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 COMMENTS_DOC_ID = "28082902984733691"
@@ -66,10 +69,12 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
     timeout_count = 0
     max_timeout = 3
     comments_since_cooldown = 0
-    last_seen_created_at = None
+    # Komentar IG tidak dijamin urut kronologis, jadi lacak kedua ujung rentang.
+    oldest_dt = None
+    newest_dt = None
 
     def add_comment(node):
-        nonlocal comments_since_cooldown, last_seen_created_at
+        nonlocal comments_since_cooldown, oldest_dt, newest_dt
         comment_id = str(node.get("pk", ""))
         if not comment_id or comment_id in comment_index:
             return
@@ -79,7 +84,12 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
         comments.append(parsed)
         created_at = parsed.get("created_at")
         if created_at and created_at != "-":
-            last_seen_created_at = created_at
+            dt = _parse_created_at(created_at)
+            if dt:
+                if oldest_dt is None or dt < oldest_dt:
+                    oldest_dt = dt
+                if newest_dt is None or dt > newest_dt:
+                    newest_dt = dt
         comments_since_cooldown += 1
         user_id = parsed_user.get("user_id_str", "")
         if user_id != "-" and user_id not in users:
@@ -162,8 +172,8 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
                 comments_added = len(comments) - comments_before
 
                 if stop_crawling:
-                    if last_seen_created_at:
-                        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                    if oldest_dt and newest_dt:
+                        print(f"\n[INFO] Rentang data: {_fmt_range(oldest_dt)} s/d {_fmt_range(newest_dt)}")
                     break
 
                 if comments_added > 0:
@@ -181,8 +191,8 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
                         scrolling_number = 0
                         print(f"[WARNING] Timeout ({timeout_count}/{max_timeout})")
                         if timeout_count >= max_timeout:
-                            if last_seen_created_at:
-                                print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+                            if oldest_dt and newest_dt:
+                                print(f"\n[INFO] Rentang data: {_fmt_range(oldest_dt)} s/d {_fmt_range(newest_dt)}")
                             break
 
         except Exception:
@@ -308,7 +318,7 @@ def crawl_ig_single_post(post_url: str, auth: str, headless: bool = True, enrich
         print(f"\n[OK] Enriching {total_users} users ({n_tabs} tab)...")
         asyncio.run(_enrich_users_parallel(auth, users, user_list, n_tabs, headless))
 
-    if last_seen_created_at:
-        print(f"\n[INFO] Komentar terakhir terdeteksi pada: {last_seen_created_at} -> UNTIL: {_fmt_until(last_seen_created_at)}")
+    if oldest_dt and newest_dt:
+        print(f"\n[INFO] Rentang data: {_fmt_range(oldest_dt)} s/d {_fmt_range(newest_dt)}")
 
     return comments, list(users.values())
