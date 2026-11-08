@@ -70,6 +70,7 @@ Pygments==2.19.2
 pynndescent==0.5.13
 pyparsing==3.2.5
 python-dateutil==2.9.0.post0
+python-dotenv==1.2.4
 pytz==2025.2
 pyvis==0.3.2
 PyYAML==6.0.3
