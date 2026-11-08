@@ -20,7 +20,8 @@ def scan_data_folders(project):
     folders = []
     for root, dirs, files in os.walk(project_dir):
         csv_files = [f for f in files if f.endswith(".csv") and not f.startswith("merged")]
-        if csv_files:
+        # Folder dengan 1 file tidak ada yang bisa digabung, jadi disembunyikan.
+        if len(csv_files) > 1:
             rel_path = os.path.relpath(root, project_dir)
             folders.append((rel_path, len(csv_files)))
     return sorted(folders)
@@ -157,7 +158,7 @@ if __name__ == "__main__":
 
             folders = scan_data_folders(project)
             if not folders:
-                print(f"  [!] Tidak ada file CSV di project '{project}'.")
+                print(f"  [!] Tidak ada folder dengan 2+ file CSV untuk digabung di project '{project}'.")
                 continue
             step = 2
 
